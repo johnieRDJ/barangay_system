@@ -1,8 +1,12 @@
 <?php
+session_start();
+
 include('../includes/header.php');
 include('../includes/send_residency_schedule.php');
 
-session_start();
+
+
+
 
 if($_SESSION['role'] != 'admin'){
     header("Location: ../auth/login.php");
@@ -33,10 +37,10 @@ if(isset($_POST['schedule'])){
      VALUES ('$user_id','$date','Barangay Residency Verification')");
 
     // Get user information
-    $result = mysqli_query($conn, "SELECT fullname, email FROM users WHERE user_id='$user_id'");
+    $result = mysqli_query($conn, "SELECT firstname, lastname, email FROM users WHERE user_id='$user_id'");
     $user = mysqli_fetch_assoc($result);
 
-    $fullname = $user['fullname'];
+    $fullname = $user['firstname']." ".$user['lastname'];
     $email = $user['email'];
 
     // Format date nicely for email
@@ -59,3 +63,4 @@ if(isset($_POST['schedule'])){
 ?>
 
 <?php include('../includes/footer.php'); ?>
+

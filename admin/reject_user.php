@@ -18,11 +18,14 @@ mysqli_query($conn,
  WHERE user_id='$id'");
 
 // Get user information
-$result = mysqli_query($conn,"SELECT fullname,email FROM users WHERE user_id='$id'");
+$result = mysqli_query($conn,"SELECT firstname, lastname, email FROM users WHERE user_id='$id'");
 $user = mysqli_fetch_assoc($result);
 
+// Combine first and last name
+$fullname = $user['firstname']." ".$user['lastname'];
+
 // Send rejection email
-sendAccountStatus($user['email'], $user['fullname'], "rejected");
+sendAccountStatus($user['email'], $fullname, "rejected");
 
 // Save log
 mysqli_query($conn, 
@@ -34,3 +37,6 @@ mysqli_query($conn,
 header("Location: manage_users.php");
 exit();
 ?>
+
+
+

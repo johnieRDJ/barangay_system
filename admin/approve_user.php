@@ -19,11 +19,14 @@ mysqli_query($conn,
  WHERE user_id='$id'");
 
 // Get user info
-$result = mysqli_query($conn,"SELECT fullname,email FROM users WHERE user_id='$id'");
+$result = mysqli_query($conn,"SELECT firstname, lastname, email FROM users WHERE user_id='$id'");
 $user = mysqli_fetch_assoc($result);
 
+// Combine first and last name
+$fullname = $user['firstname'] . " " . $user['lastname'];
+
 // Send approval email
-sendAccountStatus($user['email'], $user['fullname'], "approved");
+sendAccountStatus($user['email'], $fullname, "approved");
 
 // Save log
 mysqli_query($conn, 

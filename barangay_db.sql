@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 07, 2026 at 10:35 AM
+-- Generation Time: Mar 21, 2026 at 02:39 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -119,7 +119,8 @@ INSERT INTO `logs` (`log_id`, `user_id`, `action`, `log_time`) VALUES
 
 CREATE TABLE `users` (
   `user_id` int(11) NOT NULL,
-  `fullname` varchar(100) NOT NULL,
+  `firstname` varchar(50) DEFAULT NULL,
+  `lastname` varchar(50) DEFAULT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` enum('admin','staff','complainant') NOT NULL,
@@ -134,11 +135,11 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `fullname`, `email`, `password`, `role`, `residency_status`, `account_status`, `otp_code`, `otp_expiry`, `created_at`) VALUES
-(1, 'System Administrator', 'admin@barangay.com', '$2y$10$KAMo90XDjDfAEszw8.6BAOZrFGgmH1vli0LZvHRmcyH.WZuDj2F0m', 'admin', 'verified', 'approved', '104787', '2026-03-07 09:33:44', '2026-03-06 06:33:01'),
-(2, 'Rj', 'argydy2003@gmail.com', '$2y$10$2SZOth.0mHdCEyfBmXqUquczRAkso6QzhQCyBerMhyPlDdlqxJBEK', 'complainant', 'verified', 'approved', '642583', '2026-03-07 09:38:50', '2026-03-07 06:42:51'),
-(3, 'Venzoy', 'rjdy2003@gmail.com', '$2y$10$d78SDT.KXvVGq70bcfzZL.sWZktYcaKsIB7Kn09zE2jPEs31zvurO', 'staff', 'pending', 'rejected', NULL, NULL, '2026-03-07 07:06:48'),
-(4, 'Arjay', 'johniedy2003@gmail.com', '$2y$10$mYGv6VLR9RNtwPQ1skPU4OrS.X/rusYksyQGbxqIPMNs7t8zaaCqy', 'staff', 'verified', 'approved', '779492', '2026-03-07 09:37:22', '2026-03-07 07:28:26');
+INSERT INTO `users` (`user_id`, `firstname`, `lastname`, `email`, `password`, `role`, `residency_status`, `account_status`, `otp_code`, `otp_expiry`, `created_at`) VALUES
+(1, 'System', 'Administrator', 'admin@barangay.com', '$2y$10$KAMo90XDjDfAEszw8.6BAOZrFGgmH1vli0LZvHRmcyH.WZuDj2F0m', 'admin', 'verified', 'approved', '105834', '2026-03-20 14:42:34', '2026-03-06 06:33:01'),
+(2, 'Rj', 'Rj', 'argydy2003@gmail.com', '$2y$10$2SZOth.0mHdCEyfBmXqUquczRAkso6QzhQCyBerMhyPlDdlqxJBEK', 'complainant', 'verified', 'approved', '642583', '2026-03-07 09:38:50', '2026-03-07 06:42:51'),
+(3, 'Venzoy', 'Venzoy', 'rjdy2003@gmail.com', '$2y$10$d78SDT.KXvVGq70bcfzZL.sWZktYcaKsIB7Kn09zE2jPEs31zvurO', 'staff', 'pending', 'rejected', NULL, NULL, '2026-03-07 07:06:48'),
+(4, 'Arjay', 'Arjay', 'johniedy2003@gmail.com', '$2y$10$mYGv6VLR9RNtwPQ1skPU4OrS.X/rusYksyQGbxqIPMNs7t8zaaCqy', 'staff', 'verified', 'approved', '779492', '2026-03-07 09:37:22', '2026-03-07 07:28:26');
 
 --
 -- Indexes for dumped tables

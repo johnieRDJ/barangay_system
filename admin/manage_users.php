@@ -28,32 +28,39 @@ $result = mysqli_query($conn,
 
 <?php while($row = mysqli_fetch_assoc($result)): ?>
 <tr>
-    <td><?php echo $row['fullname']; ?></td>
-    <td><?php echo $row['email']; ?></td>
-    <td><?php echo $row['role']; ?></td>
-    <td><?php echo $row['residency_status']; ?></td>
-    <td><?php echo $row['account_status']; ?></td>
-    <td>
 
-    <?php if($row['account_status'] == 'pending'): ?>
+<td><?php echo $row['firstname']." ".$row['lastname']; ?></td>
 
-        <a href="approve_user.php?id=<?php echo $row['user_id']; ?>">
-            Approve
-        </a> |
+<td><?php echo $row['email']; ?></td>
 
-        <a href="schedule_appointment.php?id=<?php echo $row['user_id']; ?>">
-            Schedule Residency
-        </a> |
+<td><?php echo $row['role']; ?></td>
 
-        <a href="reject_user.php?id=<?php echo $row['user_id']; ?>">
-            Reject
-        </a>
+<td><?php echo $row['residency_status']; ?></td>
 
-    <?php else: ?>
-        No Action
-    <?php endif; ?>
+<td><?php echo $row['account_status']; ?></td>
 
-    </td>
+<td>
+
+<?php if($row['account_status'] == 'pending'): ?>
+
+<a href="approve_user.php?id=<?php echo $row['user_id']; ?>">
+Approve
+</a> |
+
+<a href="schedule_appointment.php?id=<?php echo $row['user_id']; ?>">
+Schedule Residency
+</a> |
+
+<a href="reject_user.php?id=<?php echo $row['user_id']; ?>">
+Reject
+</a>
+
+<?php else: ?>
+No Action
+<?php endif; ?>
+
+</td>
+
 </tr>
 <?php endwhile; ?>
 

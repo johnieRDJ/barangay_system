@@ -11,7 +11,7 @@ include('../includes/sidebar.php');
 
 // Join logs with users to get fullname
 $result = mysqli_query($conn,
-"SELECT logs.*, users.fullname
+"SELECT logs.*, CONCAT(users.firstname,' ',users.lastname) AS fullname
  FROM logs
  JOIN users ON logs.user_id = users.user_id
  ORDER BY logs.log_time DESC");
