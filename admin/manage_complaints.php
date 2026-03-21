@@ -1,25 +1,59 @@
 <?php
-include('../includes/header.php');
+session_start();
+
 include('../config/database.php');
-include('../includes/sidebar.php');
+
+
 include('../includes/send_complaint_update.php');
 
-if($_SESSION['role'] != 'admin'){
+if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
     header("Location: ../auth/login.php");
     exit();
 }
 
+// HANDLE ASSIGN
+if(isset($_POST['assign'])){
 
+    $complaint_id = $_POST['complaint_id'];
+    $staff_id = $_POST['staff_id'];
+    $email = $_POST['email'];
+    $fullname = $_POST['fullname'];
+    $subject = $_POST['subject'];
 
+    mysqli_query($conn,
+    "UPDATE complaints
+     SET assigned_staff_id='$staff_id',
+         status='In Progress'
+     WHERE complaint_id='$complaint_id'");
 
+    sendComplaintUpdate($email, $fullname, $subject, "In Progress");
 
+    mysqli_query($conn,
+    "INSERT INTO logs (user_id, action)
+     VALUES ('".$_SESSION['user_id']."',
+     'Assigned staff to complaint ID $complaint_id')");
+
+    header("Location: manage_complaints.php");
+    exit();
+}
+
+include('../includes/header.php');
+include('../includes/sidebar.php');
+
+// JOIN to get assigned staff name
 $result = mysqli_query($conn,
-"SELECT complaints.*, users.firstname, users.lastname, users.email
+"SELECT complaints.*, 
+        u.firstname AS fname, u.lastname AS lname, u.email,
+        s.firstname AS staff_fname, s.lastname AS staff_lname
  FROM complaints
- JOIN users ON complaints.complainant_id = users.user_id");
+ JOIN users u ON complaints.complainant_id = u.user_id
+ LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id
+ ORDER BY complaints.complaint_id DESC");
 
+// ONLY APPROVED STAFF
 $staff = mysqli_query($conn,
-"SELECT * FROM users WHERE role='staff'");
+"SELECT * FROM users 
+ WHERE role='staff' AND account_status='approved'");
 ?>
 
 <h2>Manage Complaints</h2>
@@ -29,33 +63,44 @@ $staff = mysqli_query($conn,
     <th>Complainant</th>
     <th>Subject</th>
     <th>Status</th>
-    <th>Assign Staff</th>
+    <th>Assigned Staff</th>
+    <th>Assign</th>
 </tr>
 
 <?php while($row = mysqli_fetch_assoc($result)): ?>
 
 <tr>
 
-<td>
-<?php echo $row['firstname']." ".$row['lastname']; ?>
-</td>
+<td><?php echo $row['fname']." ".$row['lname']; ?></td>
 
 <td><?php echo $row['subject']; ?></td>
 
 <td><?php echo $row['status']; ?></td>
 
 <td>
+<?php
+if($row['staff_fname']){
+    echo $row['staff_fname']." ".$row['staff_lname'];
+}else{
+    echo "Not Assigned";
+}
+?>
+</td>
+
+<td>
+
+<?php if(!$row['assigned_staff_id']){ ?>
 
 <form method="POST">
 
 <input type="hidden" name="complaint_id" value="<?php echo $row['complaint_id']; ?>">
 <input type="hidden" name="email" value="<?php echo $row['email']; ?>">
-<input type="hidden" name="fullname" value="<?php echo $row['firstname']." ".$row['lastname']; ?>">
+<input type="hidden" name="fullname" value="<?php echo $row['fname']." ".$row['lname']; ?>">
 <input type="hidden" name="subject" value="<?php echo $row['subject']; ?>">
 
 <select name="staff_id" required>
 
-<?php mysqli_data_seek($staff,0); while($s = mysqli_fetch_assoc($staff)): ?>
+<?php while($s = mysqli_fetch_assoc($staff)): ?>
 
 <option value="<?php echo $s['user_id']; ?>">
 <?php echo $s['firstname']." ".$s['lastname']; ?>
@@ -65,9 +110,13 @@ $staff = mysqli_query($conn,
 
 </select>
 
-<button name="assign">Assign</button>
+<button type="submit" name="assign">Assign</button>
 
 </form>
+
+<?php } else {
+    echo "-";
+} ?>
 
 </td>
 
@@ -77,41 +126,6 @@ $staff = mysqli_query($conn,
 
 </table>
 
-<?php
-if(isset($_POST['assign'])){
 
-    $complaint_id = $_POST['complaint_id'];
-    $staff_id = $_POST['staff_id'];
-    $email = $_POST['email'];
-    $fullname = $_POST['fullname'];
-    $subject = $_POST['subject'];
-
-    // Update complaint
-    mysqli_query($conn,
-    "UPDATE complaints
-     SET assigned_staff_id='$staff_id',
-         status='In Progress'
-     WHERE complaint_id='$complaint_id'");
-
-    // Send email notification
-    sendComplaintUpdate(
-        $email,
-        $fullname,
-        $subject,
-        "In Progress"
-    );
-
-    // Save log
-    mysqli_query($conn,
-    "INSERT INTO logs (user_id, action)
-     VALUES ('".$_SESSION['user_id']."',
-     'Assigned staff to complaint ID $complaint_id')");
-
-    echo "<script>
-    alert('Staff assigned successfully!');
-    window.location='manage_complaints.php';
-    </script>";
-}
-?>
 
 <?php include('../includes/footer.php'); ?>

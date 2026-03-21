@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 include('../includes/header.php');
 include('../config/database.php');
 include('../includes/sidebar.php');
@@ -12,24 +14,76 @@ $result = mysqli_query($conn,
 
 <h2>Assigned Complaints</h2>
 
-<table border="1" cellpadding="10">
+<table border="1" cellpadding="10" width="100%">
 <tr>
     <th>Subject</th>
+    <th>Description</th>
     <th>Status</th>
-    <th>Update</th>
+    <th>Staff Comment</th>
+    <th>Action</th>
 </tr>
 
 <?php while($row = mysqli_fetch_assoc($result)): ?>
+
 <tr>
     <td><?php echo $row['subject']; ?></td>
+
+    <td><?php echo $row['description']; ?></td>
+
     <td><?php echo $row['status']; ?></td>
+
     <td>
-        <a href="update_status.php?id=<?php echo $row['complaint_id']; ?>">
-            Mark Resolved
-        </a>
+        <?php 
+        if($row['staff_comment']){
+            echo $row['staff_comment'];
+        } else {
+            echo "No comment yet";
+        }
+        ?>
+    </td>
+
+    <td>
+
+    <form method="POST">
+
+        <input type="hidden" name="complaint_id" value="<?php echo $row['complaint_id']; ?>">
+
+        <textarea name="comment" placeholder="Enter action taken..." required></textarea><br><br>
+
+        <button name="update">Update & Resolve</button>
+
+    </form>
+
     </td>
 </tr>
+
 <?php endwhile; ?>
+
 </table>
 
+<?php
+if(isset($_POST['update'])){
+
+    $id = $_POST['complaint_id'];
+    $comment = $_POST['comment'];
+
+    mysqli_query($conn,
+    "UPDATE complaints
+     SET status='Resolved',
+         staff_comment='$comment'
+     WHERE complaint_id='$id'");
+
+    mysqli_query($conn,
+    "INSERT INTO logs (user_id, action)
+     VALUES ('".$_SESSION['user_id']."',
+     'Resolved complaint ID $id with comment')");
+
+    echo "<script>
+    alert('Complaint updated!');
+    window.location='view_complaints.php';
+    </script>";
+}
+?>
+
 <?php include('../includes/footer.php'); ?>
+
