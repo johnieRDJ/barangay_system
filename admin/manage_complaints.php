@@ -40,7 +40,7 @@ if(isset($_POST['assign'])){
 include('../includes/header.php');
 include('../includes/sidebar.php');
 
-// JOIN to get assigned staff name
+// GET COMPLAINTS + USER + STAFF
 $result = mysqli_query($conn,
 "SELECT complaints.*, 
         u.firstname AS fname, u.lastname AS lname, u.email,
@@ -50,7 +50,7 @@ $result = mysqli_query($conn,
  LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id
  ORDER BY complaints.complaint_id DESC");
 
-// ONLY APPROVED STAFF
+// GET APPROVED STAFF
 $staff = mysqli_query($conn,
 "SELECT * FROM users 
  WHERE role='staff' AND account_status='approved'");
@@ -58,10 +58,11 @@ $staff = mysqli_query($conn,
 
 <h2>Manage Complaints</h2>
 
-<table border="1" cellpadding="10">
+<table border="1" cellpadding="10" width="100%">
 <tr>
     <th>Complainant</th>
     <th>Subject</th>
+    <th>Description</th>
     <th>Status</th>
     <th>Assigned Staff</th>
     <th>Assign</th>
@@ -75,14 +76,28 @@ $staff = mysqli_query($conn,
 
 <td><?php echo $row['subject']; ?></td>
 
-<td><?php echo $row['status']; ?></td>
+<td><?php echo $row['description']; ?></td>
+
+<td>
+<?php
+if($row['status'] == 'Pending'){
+    echo "<span style='color:orange;'>Pending</span>";
+}
+elseif($row['status'] == 'In Progress'){
+    echo "<span style='color:blue;'>In Progress</span>";
+}
+else{
+    echo "<span style='color:green;'>Resolved</span>";
+}
+?>
+</td>
 
 <td>
 <?php
 if($row['staff_fname']){
     echo $row['staff_fname']." ".$row['staff_lname'];
 }else{
-    echo "Not Assigned";
+    echo "<i>Not Assigned</i>";
 }
 ?>
 </td>
@@ -100,7 +115,10 @@ if($row['staff_fname']){
 
 <select name="staff_id" required>
 
-<?php while($s = mysqli_fetch_assoc($staff)): ?>
+<?php
+mysqli_data_seek($staff, 0); // 🔥 important fix
+while($s = mysqli_fetch_assoc($staff)):
+?>
 
 <option value="<?php echo $s['user_id']; ?>">
 <?php echo $s['firstname']." ".$s['lastname']; ?>
@@ -129,3 +147,4 @@ if($row['staff_fname']){
 
 
 <?php include('../includes/footer.php'); ?>
+
