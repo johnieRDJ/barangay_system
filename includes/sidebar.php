@@ -8,12 +8,14 @@
         <a href="../admin/manage_users.php">Manage Users</a>
         <a href="../admin/manage_complaints.php">Manage Complaints</a>
         <a href="../admin/view_logs.php">System Logs</a>
+        <a href="../admin/view_profiles.php">User Profiles</a>
 
     <?php elseif($_SESSION['role'] == 'staff'): ?>
 
         <li><a href="../staff/profile.php">My Profile</a></li>
         <a href="../staff/dashboard.php">Dashboard</a>
         <a href="../staff/view_complaints.php">View Complaints</a>
+        <li><a href="../staff/view_logs.php">My Logs</a></li>
 
     <?php else: ?>
 

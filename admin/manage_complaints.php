@@ -11,27 +11,41 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
     exit();
 }
 
-// HANDLE ASSIGN
+// ============================
+// 🔴 HANDLE ASSIGN / REASSIGN
+// ============================
 if(isset($_POST['assign'])){
 
-    $complaint_id = $_POST['complaint_id'];
-    $staff_id = $_POST['staff_id'];
+    $complaint_id = intval($_POST['complaint_id']);
+    $staff_id = intval($_POST['staff_id']);
     $email = $_POST['email'];
     $fullname = $_POST['fullname'];
     $subject = $_POST['subject'];
 
+    // Check if already assigned
+    $check = mysqli_fetch_assoc(mysqli_query($conn,
+    "SELECT assigned_staff_id FROM complaints WHERE complaint_id='$complaint_id'"));
+
+    if($check['assigned_staff_id']){
+        $log_msg = "Updated staff assignment for complaint ID $complaint_id";
+    } else {
+        $log_msg = "Assigned staff to complaint ID $complaint_id";
+    }
+
+    // Update complaint
     mysqli_query($conn,
     "UPDATE complaints
      SET assigned_staff_id='$staff_id',
          status='In Progress'
      WHERE complaint_id='$complaint_id'");
 
+    // Send email
     sendComplaintUpdate($email, $fullname, $subject, "In Progress");
 
+    // Save log
     mysqli_query($conn,
     "INSERT INTO logs (user_id, action)
-     VALUES ('".$_SESSION['user_id']."',
-     'Assigned staff to complaint ID $complaint_id')");
+     VALUES ('".$_SESSION['user_id']."', '$log_msg')");
 
     header("Location: manage_complaints.php");
     exit();
@@ -40,7 +54,9 @@ if(isset($_POST['assign'])){
 include('../includes/header.php');
 include('../includes/sidebar.php');
 
-// GET COMPLAINTS + USER + STAFF
+// ============================
+// 🔴 GET DATA
+// ============================
 $result = mysqli_query($conn,
 "SELECT complaints.*, 
         u.firstname AS fname, u.lastname AS lname, u.email,
@@ -50,7 +66,7 @@ $result = mysqli_query($conn,
  LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id
  ORDER BY complaints.complaint_id DESC");
 
-// GET APPROVED STAFF
+// Only approved staff
 $staff = mysqli_query($conn,
 "SELECT * FROM users 
  WHERE role='staff' AND account_status='approved'");
@@ -65,7 +81,7 @@ $staff = mysqli_query($conn,
     <th>Description</th>
     <th>Status</th>
     <th>Assigned Staff</th>
-    <th>Assign</th>
+    <th>Assign / Reassign</th>
 </tr>
 
 <?php while($row = mysqli_fetch_assoc($result)): ?>
@@ -104,8 +120,7 @@ if($row['staff_fname']){
 
 <td>
 
-<?php if(!$row['assigned_staff_id']){ ?>
-
+<!-- 🔴 ALWAYS ALLOW ASSIGN / REASSIGN -->
 <form method="POST">
 
 <input type="hidden" name="complaint_id" value="<?php echo $row['complaint_id']; ?>">
@@ -116,7 +131,7 @@ if($row['staff_fname']){
 <select name="staff_id" required>
 
 <?php
-mysqli_data_seek($staff, 0); // 🔥 important fix
+mysqli_data_seek($staff, 0);
 while($s = mysqli_fetch_assoc($staff)):
 ?>
 
@@ -128,13 +143,13 @@ while($s = mysqli_fetch_assoc($staff)):
 
 </select>
 
-<button type="submit" name="assign">Assign</button>
+<button type="submit" name="assign">
+<?php echo $row['assigned_staff_id'] ? 'Update' : 'Assign'; ?>
+</button>
 
 </form>
 
-<?php } else {
-    echo "-";
-} ?>
+
 
 </td>
 

@@ -11,6 +11,11 @@ include('../includes/sidebar.php');
 
 $user_id = $_SESSION['user_id'];
 
+// ✅ LOG: Staff opened dashboard
+mysqli_query($conn,
+"INSERT INTO logs (user_id, action)
+ VALUES ('$user_id','Opened staff dashboard')");
+
 $total_assigned = mysqli_fetch_assoc(mysqli_query($conn,
 "SELECT COUNT(*) as total FROM complaints 
  WHERE assigned_staff_id='$user_id'"))['total'];
@@ -24,7 +29,6 @@ $resolved = mysqli_fetch_assoc(mysqli_query($conn,
 "SELECT COUNT(*) as total FROM complaints 
  WHERE assigned_staff_id='$user_id' 
  AND status='resolved'"))['total'];
-
 ?>
 
 <h1>Staff Dashboard</h1>

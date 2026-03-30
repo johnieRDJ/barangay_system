@@ -26,6 +26,11 @@ if(isset($_POST['save'])){
          phone='$phone',
          about='$about'
      WHERE user_id='$user_id'");
+
+     // ✅ LOG
+mysqli_query($conn,
+"INSERT INTO logs (user_id, action)
+ VALUES ('$user_id','Updated profile information')");
 }
 
 /* ============================
@@ -43,6 +48,11 @@ if(isset($_POST['upload'])){
     mysqli_query($conn,
     "UPDATE users SET profile_image='$image'
      WHERE user_id='$user_id'");
+
+     // ✅ LOG
+mysqli_query($conn,
+"INSERT INTO logs (user_id, action)
+ VALUES ('$user_id','Uploaded profile image')");
 }
 
 /* ============================
@@ -60,6 +70,11 @@ if(isset($_POST['delete'])){
     mysqli_query($conn,
     "UPDATE users SET profile_image=NULL
      WHERE user_id='$user_id'");
+
+     // ✅ LOG
+mysqli_query($conn,
+"INSERT INTO logs (user_id, action)
+ VALUES ('$user_id','Deleted profile image')");
 }
 
 /* ============================

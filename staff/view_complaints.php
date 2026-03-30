@@ -7,6 +7,11 @@ include('../includes/sidebar.php');
 
 $user_id = $_SESSION['user_id'];
 
+// ✅ LOG: Viewed assigned complaints
+mysqli_query($conn,
+"INSERT INTO logs (user_id, action)
+ VALUES ('$user_id','Viewed assigned complaints')");
+
 $result = mysqli_query($conn,
 "SELECT * FROM complaints
  WHERE assigned_staff_id='$user_id'");
@@ -65,7 +70,7 @@ $result = mysqli_query($conn,
 if(isset($_POST['update'])){
 
     $id = $_POST['complaint_id'];
-    $comment = $_POST['comment'];
+    $comment = mysqli_real_escape_string($conn, $_POST['comment']);
 
     mysqli_query($conn,
     "UPDATE complaints
@@ -73,10 +78,11 @@ if(isset($_POST['update'])){
          staff_comment='$comment'
      WHERE complaint_id='$id'");
 
+    // ✅ LOG: Detailed action
     mysqli_query($conn,
     "INSERT INTO logs (user_id, action)
-     VALUES ('".$_SESSION['user_id']."',
-     'Resolved complaint ID $id with comment')");
+     VALUES ('$user_id',
+     'Resolved complaint ID $id and added comment')");
 
     echo "<script>
     alert('Complaint updated!');
