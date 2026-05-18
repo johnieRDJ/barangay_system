@@ -1,11 +1,11 @@
 <?php
 return [
-    'app_url' => 'https://brgycomplaint.argy.host',
+    'app_url' => 'http://localhost/barangay',
     'database' => [
         'host' => 'localhost',
-        'username' => 'u845277124_brngycomplaint',
-        'password' => 'Brngyomplaint_2003',
-        'name' => 'u845277124_brngycomplaint',
+        'username' => 'root',
+        'password' => '',
+        'name' => 'barangay_db',
     ],
     'mail' => [
         'host' => 'smtp.gmail.com',
