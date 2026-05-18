@@ -132,13 +132,13 @@ if(!$canView){
 
 $proofPath = trim((string)$proof['stored_path']);
 $normalizedProofPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($proofPath, "/\\"));
-$allowedFolder = realpath(__DIR__ . '/uploads/complaint_proofs');
+$allowedFolder = realpath(__DIR__ . '/uploads');
 $filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . $normalizedProofPath);
 
 if($allowedFolder === false || $filePath === false || strpos($filePath, $allowedFolder . DIRECTORY_SEPARATOR) !== 0 || !is_file($filePath)){
     showProofMessage(
         'Proof File Missing',
-        'The database has a proof record, but the actual file is not in uploads/complaint_proofs on this server. Upload the proof file again or include the uploaded proof files when moving the system online.'
+        'The database has a proof record, but the actual file is not in the uploads folder on this server. Upload the proof file again or include the uploaded files when moving the system online.'
     );
 }
 

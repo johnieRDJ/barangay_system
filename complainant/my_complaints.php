@@ -10,9 +10,139 @@ include('../config/database.php');
 include('../includes/pagination.php');
 include('../includes/complaint_updates.php');
 include('../includes/send_complaint_update.php');
+include('../includes/blotter_pdf.php');
 
 $user_id = intval($_SESSION['user_id']);
 $action_error = '';
+
+db_execute($conn,
+"UPDATE complaints
+ SET resolution_confirmation='pending'
+ WHERE complainant_id=?
+ AND status='Resolved'
+ AND (resolution_confirmation IS NULL OR resolution_confirmation='')
+ AND EXISTS (
+     SELECT 1
+     FROM complaint_updates
+     WHERE complaint_updates.complaint_id = complaints.complaint_id
+     AND complaint_updates.update_type='resolved'
+ )",
+ 'i',
+ [$user_id]);
+
+if(isset($_POST['blotter_sign'])){
+    $reportId = intval($_POST['report_id'] ?? 0);
+    $complaintId = intval($_POST['complaint_id'] ?? 0);
+    $postedPerPage = intval($_POST['per_page'] ?? 10);
+    $postedPerPage = in_array($postedPerPage, [10, 20, 30, 40, 50], true) ? $postedPerPage : 10;
+    $postedStatusFilter = $_POST['status_filter'] ?? '';
+    $postedStatusFilter = in_array($postedStatusFilter, ['Pending', 'In Progress', 'Awaiting Confirmation', 'Resolved', 'Cancelled'], true) ? $postedStatusFilter : '';
+    $redirectBase = [
+        'page' => max(1, intval($_POST['page'] ?? 1)),
+        'per_page' => $postedPerPage,
+    ];
+
+    if($postedStatusFilter !== ''){
+        $redirectBase['status'] = $postedStatusFilter;
+    }
+
+    $report = db_select_one($conn,
+    "SELECT blotter_reports.*,
+            complaints.tracking_number,
+            complaints.subject,
+            staff.email AS staff_email,
+            staff.firstname AS staff_firstname,
+            staff.lastname AS staff_lastname
+     FROM blotter_reports
+     JOIN complaints ON blotter_reports.complaint_id = complaints.complaint_id
+     LEFT JOIN users staff ON complaints.assigned_staff_id = staff.user_id
+     WHERE blotter_reports.report_id=?
+     AND blotter_reports.complaint_id=?
+     AND complaints.complainant_id=?
+     AND blotter_reports.status='awaiting_complainant_signature'
+     LIMIT 1",
+     'iii',
+     [$reportId, $complaintId, $user_id]);
+
+    if(!$report){
+        $action_error = 'Blotter report is not available for signing.';
+    } elseif(empty($_FILES['complainant_signature']['name'])){
+        $action_error = 'Please attach your e-signature image.';
+    } else {
+        $extension = strtolower(pathinfo($_FILES['complainant_signature']['name'], PATHINFO_EXTENSION));
+
+        if(!in_array($extension, ['jpg', 'jpeg', 'png'], true)){
+            $action_error = 'Only JPG and PNG signatures are allowed.';
+        } elseif(intval($_FILES['complainant_signature']['size']) > 5 * 1024 * 1024){
+            $action_error = 'Signature image must be 5MB or smaller.';
+        } elseif(($_FILES['complainant_signature']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK){
+            $action_error = 'The signature could not be uploaded. Please try again.';
+        } else {
+            $signatureFolder = realpath(__DIR__ . '/../uploads');
+            $signatureFolder = $signatureFolder === false ? false : $signatureFolder . DIRECTORY_SEPARATOR . 'blotter_signatures';
+
+            if($signatureFolder === false || (!is_dir($signatureFolder) && !mkdir($signatureFolder, 0777, true))){
+                $action_error = 'Could not create the signature upload folder.';
+            } else {
+                $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($_FILES['complainant_signature']['name']));
+                $storedSignature = time() . '_' . $complaintId . '_' . $user_id . '_' . $safeName;
+                $destinationPath = $signatureFolder . DIRECTORY_SEPARATOR . $storedSignature;
+
+                if(move_uploaded_file($_FILES['complainant_signature']['tmp_name'], $destinationPath)){
+                    db_execute($conn,
+                    "UPDATE blotter_reports
+                     SET status='signed_by_complainant',
+                         complainant_signature_image=?
+                     WHERE report_id=?",
+                     'si',
+                     [$storedSignature, $reportId]);
+
+                    regenerate_blotter_report_pdf($conn, $reportId);
+
+                    $updateId = addComplaintUpdate(
+                        $conn,
+                        $complaintId,
+                        $user_id,
+                        'complainant',
+                        'blotter_signed',
+                        $report['status'],
+                        'Complainant signed the barangay blotter / complaint report.'
+                    );
+
+                    if($updateId){
+                        addComplaintUpdateAttachment(
+                            $conn,
+                            $updateId,
+                            'uploads/blotter_signatures/' . $storedSignature,
+                            'Complainant E-Signature',
+                            $extension,
+                            intval($_FILES['complainant_signature']['size'])
+                        );
+                    }
+
+                    if(!empty($report['staff_email'])){
+                        $staffName = trim($report['staff_firstname'] . ' ' . $report['staff_lastname']);
+                        sendComplaintTimelineUpdate(
+                            $report['staff_email'],
+                            $staffName,
+                            $report['subject'],
+                            $report['tracking_number'],
+                            'Complainant Signed Blotter',
+                            "The complainant uploaded their scanned e-signature. Please review the blotter report and submit it to admin for approval.",
+                            'Complainant',
+                            rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/staff/view_complaints.php'
+                        );
+                    }
+
+                    header("Location: my_complaints.php?" . http_build_query(array_merge($redirectBase, ['blotter_signed' => 1])));
+                    exit();
+                }
+
+                $action_error = 'Could not save the signature image.';
+            }
+        }
+    }
+}
 
 if(isset($_POST['complaint_action'])){
     $complaintId = intval($_POST['complaint_id']);
@@ -218,6 +348,7 @@ if(!empty($complaintIds)){
 $timelineByComplaint = [];
 $updateIds = array_map('intval', array_column($timelineRows, 'update_id'));
 $attachmentsByUpdate = [];
+$blotterReportsByComplaint = [];
 
 if(!empty($updateIds)){
     $placeholders = implode(',', array_fill(0, count($updateIds), '?'));
@@ -237,6 +368,26 @@ if(!empty($updateIds)){
 foreach($timelineRows as $timelineRow){
     $timelineByComplaint[$timelineRow['complaint_id']][] = $timelineRow;
 }
+
+if(!empty($complaintIds)){
+    $placeholders = implode(',', array_fill(0, count($complaintIds), '?'));
+    $blotterReportRows = db_select_all($conn,
+    "SELECT *
+     FROM blotter_reports
+     WHERE complaint_id IN ($placeholders)
+     ORDER BY created_at DESC, report_id DESC",
+     str_repeat('i', count($complaintIds)),
+     $complaintIds);
+
+    foreach($blotterReportRows as $reportRow){
+        $reportComplaintId = intval($reportRow['complaint_id']);
+
+        if(!isset($blotterReportsByComplaint[$reportComplaintId])){
+            $blotterReportsByComplaint[$reportComplaintId] = $reportRow;
+        }
+    }
+}
+
 ?>
 
 <div class="page-shell">
@@ -266,6 +417,12 @@ foreach($timelineRows as $timelineRow){
     <?php if(isset($_GET['cancelled'])): ?>
         <div class="table-card">
             <p style="margin:0; color:#4b5563; font-weight:600;">The complaint was cancelled and kept in your complaint history.</p>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_GET['blotter_signed'])): ?>
+        <div class="table-card">
+            <p style="margin:0; color:#15803d; font-weight:600;">Your e-signature was added to the blotter report and sent back to the assigned staff.</p>
         </div>
     <?php endif; ?>
 
@@ -310,6 +467,7 @@ foreach($timelineRows as $timelineRow){
             $latestUpdateExcerpt = strlen($latestUpdatePlain) > 140
                 ? substr($latestUpdatePlain, 0, 140) . '...'
                 : $latestUpdatePlain;
+            $latestBlotterReport = $blotterReportsByComplaint[$complaintId] ?? null;
             ?>
 
             <div class="table-card complaint-card">
@@ -380,6 +538,33 @@ foreach($timelineRows as $timelineRow){
                             <?php else: ?>
                                 <a href="print_ticket.php?id=<?php echo $complaintId; ?>" class="page-action">Print Complaint</a>
                                 <span class="table-muted">Editing is disabled once work has started.</span>
+                            <?php endif; ?>
+
+                            <?php if($latestBlotterReport): ?>
+                                <div class="blotter-sign-box">
+                                    <strong>Blotter Report</strong>
+                                    <a class="page-action secondary-action" href="../view_blotter_report.php?report_id=<?php echo intval($latestBlotterReport['report_id']); ?>">Open Blotter PDF</a>
+                                    <?php if($latestBlotterReport['status'] === 'awaiting_complainant_signature'): ?>
+                                        <p class="table-muted">Your e-signature is needed before staff can submit this report to admin.</p>
+                                        <form method="POST" enctype="multipart/form-data" class="complaint-confirmation-form">
+                                            <input type="hidden" name="report_id" value="<?php echo intval($latestBlotterReport['report_id']); ?>">
+                                            <input type="hidden" name="complaint_id" value="<?php echo $complaintId; ?>">
+                                            <input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">
+                                            <input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
+                                            <input type="hidden" name="status_filter" value="<?php echo htmlspecialchars($statusFilter); ?>">
+                                            <input type="file" name="complainant_signature" accept=".jpg,.jpeg,.png" required>
+                                            <button type="submit" name="blotter_sign">Submit E-Signature</button>
+                                        </form>
+                                    <?php elseif($latestBlotterReport['status'] === 'signed_by_complainant'): ?>
+                                        <p class="table-muted">Signed by you. Waiting for assigned staff to submit to admin.</p>
+                                    <?php elseif($latestBlotterReport['status'] === 'submitted_to_admin'): ?>
+                                        <p class="table-muted">Submitted to admin for review.</p>
+                                    <?php elseif($latestBlotterReport['status'] === 'approved'): ?>
+                                        <p class="table-muted">Approved by admin.</p>
+                                    <?php else: ?>
+                                        <p class="table-muted">Report status: <?php echo htmlspecialchars($latestBlotterReport['status']); ?></p>
+                                    <?php endif; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>

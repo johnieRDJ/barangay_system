@@ -69,6 +69,27 @@ if(!isset($_SESSION['user_id'])){
                 checkSessionState();
             }
         });
+
+        document.addEventListener('submit', function(event) {
+            const form = event.target;
+
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            if (form.dataset.submitting === 'true') {
+                event.preventDefault();
+                return;
+            }
+
+            form.dataset.submitting = 'true';
+
+            setTimeout(function() {
+                form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(button) {
+                    button.disabled = true;
+                });
+            }, 0);
+        }, true);
     </script>
 </head>
 <body>

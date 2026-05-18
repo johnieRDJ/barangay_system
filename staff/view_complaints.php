@@ -232,6 +232,84 @@ if(isset($_POST['update'])){
     }
 }
 
+if(isset($_POST['submit_blotter_admin'])){
+    $reportId = intval($_POST['report_id'] ?? 0);
+    $complaintId = intval($_POST['complaint_id'] ?? 0);
+    $postedPerPage = intval($_POST['per_page'] ?? 10);
+    $postedPerPage = in_array($postedPerPage, [10, 20, 30, 40, 50], true) ? $postedPerPage : 10;
+    $postedStatusFilter = $_POST['status_filter'] ?? '';
+    $postedStatusFilter = in_array($postedStatusFilter, ['Pending', 'In Progress', 'Reopened', 'Awaiting Confirmation', 'Resolved'], true) ? $postedStatusFilter : '';
+    $redirectParams = [
+        'blotter_submitted' => 1,
+        'page' => max(1, intval($_POST['page'] ?? 1)),
+        'per_page' => $postedPerPage,
+    ];
+
+    if($postedStatusFilter !== ''){
+        $redirectParams['status'] = $postedStatusFilter;
+    }
+
+    $report = db_select_one($conn,
+    "SELECT blotter_reports.report_id,
+            complaints.tracking_number,
+            complaints.subject
+     FROM blotter_reports
+     JOIN complaints ON blotter_reports.complaint_id = complaints.complaint_id
+     WHERE blotter_reports.report_id=?
+     AND blotter_reports.complaint_id=?
+     AND complaints.assigned_staff_id=?
+     AND blotter_reports.status='signed_by_complainant'
+     LIMIT 1",
+     'iii',
+     [$reportId, $complaintId, $user_id]);
+
+    if($report){
+        db_execute($conn,
+        "UPDATE blotter_reports
+         SET status='submitted_to_admin'
+         WHERE report_id=?",
+         'i',
+         [$reportId]);
+
+        addComplaintUpdate(
+            $conn,
+            $complaintId,
+            $user_id,
+            'staff',
+            'blotter_submitted_to_admin',
+            'For Admin Review',
+            'Assigned staff submitted the signed blotter report to admin for review.'
+        );
+
+        $admins = db_select_all($conn,
+        "SELECT email, firstname, lastname
+         FROM users
+         WHERE role='admin'
+         AND account_status='approved'");
+
+        foreach($admins as $admin){
+            if(empty($admin['email'])){
+                continue;
+            }
+
+            $adminName = trim($admin['firstname'] . ' ' . $admin['lastname']);
+            sendComplaintTimelineUpdate(
+                $admin['email'],
+                $adminName,
+                $report['subject'],
+                $report['tracking_number'],
+                'Blotter Awaiting Approval',
+                "A signed barangay blotter / complaint report has been submitted for admin review. Please open the admin complaint list to review the PDF and approve it when ready.",
+                'Assigned Staff',
+                rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/admin/manage_complaints.php'
+            );
+        }
+    }
+
+    header("Location: view_complaints.php?" . http_build_query($redirectParams));
+    exit();
+}
+
 include('../includes/header.php');
 include('../includes/sidebar.php');
 
@@ -336,6 +414,26 @@ foreach($reopenReasonRows as $reopenRow){
     }
 }
 
+$blotterReportsByComplaint = [];
+if(!empty($complaintIds)){
+    $placeholders = implode(',', array_fill(0, count($complaintIds), '?'));
+    $blotterReportRows = db_select_all($conn,
+    "SELECT *
+     FROM blotter_reports
+     WHERE complaint_id IN ($placeholders)
+     ORDER BY created_at DESC, report_id DESC",
+     str_repeat('i', count($complaintIds)),
+     $complaintIds);
+
+    foreach($blotterReportRows as $reportRow){
+        $reportComplaintId = intval($reportRow['complaint_id']);
+
+        if(!isset($blotterReportsByComplaint[$reportComplaintId])){
+            $blotterReportsByComplaint[$reportComplaintId] = $reportRow;
+        }
+    }
+}
+
 $accountRows = db_select_all($conn,
 "SELECT users.user_id,
         users.firstname,
@@ -376,6 +474,12 @@ $accountRows = db_select_all($conn,
         </div>
     <?php endif; ?>
 
+    <?php if(isset($_GET['blotter_submitted'])): ?>
+        <div class="table-card">
+            <p style="margin:0; color:#15803d; font-weight:600;">Signed blotter report submitted to admin for review.</p>
+        </div>
+    <?php endif; ?>
+
     <nav class="status-tabs" aria-label="Assigned complaint status filters">
         <?php foreach($statusTabs as $tabValue => $tabLabel): ?>
             <?php
@@ -412,6 +516,7 @@ $accountRows = db_select_all($conn,
                 <?php
                 $complaintId = intval($row['complaint_id']);
                 $latestReopenReason = $latestReopenReasonByComplaint[$complaintId] ?? null;
+                $latestBlotterReport = $blotterReportsByComplaint[$complaintId] ?? null;
                 ?>
                 <tr>
                     <td data-label="Complainant"><?php echo htmlspecialchars(trim(($row['complainant_firstname'] ?? '') . ' ' . ($row['complainant_lastname'] ?? ''))); ?></td>
@@ -444,6 +549,31 @@ $accountRows = db_select_all($conn,
                     <td class="action-cell" data-label="Action">
                         <a href="../reports/print_complaint_record.php?id=<?php echo $complaintId; ?>" class="page-action">Print Record</a>
                         <button type="button" class="secondary-action" onclick="document.getElementById('blotter-modal-<?php echo $complaintId; ?>').showModal()">Blotter Report</button>
+                        <?php if($latestBlotterReport): ?>
+                            <div class="blotter-sign-box">
+                                <strong>Blotter Review</strong>
+                                <a class="page-action secondary-action" href="../view_blotter_report.php?report_id=<?php echo intval($latestBlotterReport['report_id']); ?>">Open Blotter PDF</a>
+                                <?php if($latestBlotterReport['status'] === 'awaiting_complainant_signature'): ?>
+                                    <p class="table-muted">Waiting for complainant e-signature.</p>
+                                <?php elseif($latestBlotterReport['status'] === 'signed_by_complainant'): ?>
+                                    <p class="table-muted">Complainant signed. Ready for admin review.</p>
+                                    <form method="POST" class="complaint-update-form">
+                                        <input type="hidden" name="report_id" value="<?php echo intval($latestBlotterReport['report_id']); ?>">
+                                        <input type="hidden" name="complaint_id" value="<?php echo $complaintId; ?>">
+                                        <input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">
+                                        <input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
+                                        <input type="hidden" name="status_filter" value="<?php echo htmlspecialchars($statusFilter); ?>">
+                                        <button type="submit" name="submit_blotter_admin">Submit to Admin</button>
+                                    </form>
+                                <?php elseif($latestBlotterReport['status'] === 'submitted_to_admin'): ?>
+                                    <p class="table-muted">Submitted to admin for review.</p>
+                                <?php elseif($latestBlotterReport['status'] === 'approved'): ?>
+                                    <p class="table-muted">Approved by admin.</p>
+                                <?php else: ?>
+                                    <p class="table-muted">Report status: <?php echo htmlspecialchars($latestBlotterReport['status']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                         <?php if($row['status'] === 'Resolved' && $row['resolution_confirmation'] === 'pending'): ?>
                             <span class="table-muted">Waiting for complainant confirmation</span>
                         <?php elseif($row['status'] === 'Resolved'): ?>

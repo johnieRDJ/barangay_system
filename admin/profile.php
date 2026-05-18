@@ -71,6 +71,62 @@ if(isset($_POST['upload'])){
      [$image, $user_id]);
 }
 
+if(isset($_POST['upload_signature'])){
+
+    if(!empty($_FILES['signature']['name'])){
+        $extension = strtolower(pathinfo($_FILES['signature']['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png'];
+
+        if(in_array($extension, $allowedExtensions, true) && intval($_FILES['signature']['size']) <= 5 * 1024 * 1024){
+            $signatureFolder = "../uploads/signatures";
+
+            if(!is_dir($signatureFolder)){
+                mkdir($signatureFolder, 0777, true);
+            }
+
+            $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($_FILES['signature']['name']));
+            $signature = time() . "_" . $user_id . "_" . $safeName;
+            $path = $signatureFolder . "/" . $signature;
+
+            if(move_uploaded_file($_FILES['signature']['tmp_name'], $path)){
+                $currentSignature = db_select_one($conn,
+                "SELECT signature_image FROM user_profiles WHERE user_id=? LIMIT 1",
+                'i',
+                [$user_id]);
+
+                if(!empty($currentSignature['signature_image'])){
+                    @unlink($signatureFolder . "/" . $currentSignature['signature_image']);
+                }
+
+                db_execute($conn,
+                "UPDATE user_profiles
+                 SET signature_image=?
+                 WHERE user_id=?",
+                 'si',
+                 [$signature, $user_id]);
+            }
+        }
+    }
+}
+
+if(isset($_POST['delete_signature'])){
+    $get = db_select_one($conn,
+    "SELECT signature_image FROM user_profiles WHERE user_id=? LIMIT 1",
+    'i',
+    [$user_id]);
+
+    if(!empty($get['signature_image'])){
+        @unlink("../uploads/signatures/".$get['signature_image']);
+    }
+
+    db_execute($conn,
+    "UPDATE user_profiles
+     SET signature_image=NULL
+     WHERE user_id=?",
+     'i',
+     [$user_id]);
+}
+
 /* ============================
     HANDLE DELETE IMAGE
 ============================ */
@@ -97,7 +153,7 @@ if(isset($_POST['delete'])){
 ============================ */
 $user = db_select_one($conn,
 "SELECT u.firstname, u.lastname, u.email,
-        p.address, p.phone, p.age, p.gender, p.civil_status, p.about, p.profile_image
+        p.address, p.phone, p.age, p.gender, p.civil_status, p.about, p.profile_image, p.signature_image
  FROM users u
  LEFT JOIN user_profiles p ON u.user_id = p.user_id
  WHERE u.user_id=?
@@ -129,6 +185,28 @@ $user = db_select_one($conn,
 <form method="POST">
     <button name="delete">Delete Image</button>
 </form>
+
+<hr>
+
+<h3>E-Signature</h3>
+<?php if(!empty($user['signature_image'])): ?>
+    <img src="../uploads/signatures/<?php echo htmlspecialchars($user['signature_image']); ?>" alt="E-signature" class="signature-preview"><br><br>
+<?php else: ?>
+    <p>No e-signature uploaded.</p>
+<?php endif; ?>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="file" name="signature" accept=".jpg,.jpeg,.png" required>
+    <button name="upload_signature">Upload E-Signature</button>
+</form>
+
+<br>
+
+<?php if(!empty($user['signature_image'])): ?>
+    <form method="POST">
+        <button name="delete_signature">Delete E-Signature</button>
+    </form>
+<?php endif; ?>
 
 <hr>
 

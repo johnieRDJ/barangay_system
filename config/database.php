@@ -143,6 +143,7 @@ $profileExtraColumns = [
     'age' => "ALTER TABLE user_profiles ADD COLUMN age INT(3) DEFAULT NULL AFTER phone",
     'gender' => "ALTER TABLE user_profiles ADD COLUMN gender VARCHAR(50) DEFAULT NULL AFTER age",
     'civil_status' => "ALTER TABLE user_profiles ADD COLUMN civil_status VARCHAR(50) DEFAULT NULL AFTER gender",
+    'signature_image' => "ALTER TABLE user_profiles ADD COLUMN signature_image VARCHAR(255) DEFAULT NULL AFTER profile_image",
 ];
 foreach($profileExtraColumns as $columnName => $alterSql){
     $profileColumn = mysqli_query($conn, "SHOW COLUMNS FROM user_profiles LIKE '$columnName'");
@@ -206,6 +207,34 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS complaint_update_attachments (
     KEY update_id (update_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS blotter_reports (
+    report_id INT(11) NOT NULL AUTO_INCREMENT,
+    complaint_id INT(11) NOT NULL,
+    staff_user_id INT(11) DEFAULT NULL,
+    complainant_user_id INT(11) DEFAULT NULL,
+    admin_user_id INT(11) DEFAULT NULL,
+    status ENUM('awaiting_complainant_signature','signed_by_complainant','submitted_to_admin','approved','rejected') NOT NULL DEFAULT 'awaiting_complainant_signature',
+    report_path VARCHAR(255) NOT NULL,
+    report_original_name VARCHAR(255) NOT NULL,
+    report_data LONGTEXT DEFAULT NULL,
+    staff_signature_image VARCHAR(255) DEFAULT NULL,
+    complainant_signature_image VARCHAR(255) DEFAULT NULL,
+    admin_signature_image VARCHAR(255) DEFAULT NULL,
+    admin_remarks TEXT DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (report_id),
+    KEY complaint_id (complaint_id),
+    KEY staff_user_id (staff_user_id),
+    KEY complainant_user_id (complainant_user_id),
+    KEY admin_user_id (admin_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$blotterReportDataColumn = mysqli_query($conn, "SHOW COLUMNS FROM blotter_reports LIKE 'report_data'");
+if($blotterReportDataColumn instanceof mysqli_result && mysqli_num_rows($blotterReportDataColumn) === 0){
+    mysqli_query($conn, "ALTER TABLE blotter_reports ADD COLUMN report_data LONGTEXT DEFAULT NULL AFTER report_original_name");
+}
+
 mysqli_query($conn, "INSERT INTO complaint_update_attachments (
     update_id,
     stored_path,
@@ -254,6 +283,19 @@ WHERE NOT EXISTS (
     FROM complaint_updates
     WHERE complaint_updates.complaint_id = complaints.complaint_id
 )");
+
+mysqli_query($conn, "DELETE duplicate_updates
+FROM complaint_updates duplicate_updates
+INNER JOIN complaint_updates original_updates
+    ON duplicate_updates.update_id > original_updates.update_id
+    AND duplicate_updates.complaint_id = original_updates.complaint_id
+    AND (duplicate_updates.actor_user_id <=> original_updates.actor_user_id)
+    AND duplicate_updates.actor_role = original_updates.actor_role
+    AND duplicate_updates.update_type = original_updates.update_type
+    AND duplicate_updates.status_snapshot = original_updates.status_snapshot
+    AND duplicate_updates.message = original_updates.message
+    AND DATE_FORMAT(duplicate_updates.created_at, '%Y-%m-%d %H:%i') = DATE_FORMAT(original_updates.created_at, '%Y-%m-%d %H:%i')
+WHERE duplicate_updates.update_type='assigned'");
 
 $complaintUpdatesComplaintFk = mysqli_query($conn, "SELECT CONSTRAINT_NAME
 FROM information_schema.KEY_COLUMN_USAGE

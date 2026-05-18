@@ -214,7 +214,7 @@ button:disabled {
 .dashboard-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
     flex: 1;
     width: 100%;
     min-width: 0;
@@ -307,6 +307,7 @@ button:disabled {
 }
 
 .filter-actions {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 14px;
@@ -321,6 +322,12 @@ button:disabled {
 
 .filter-primary-action button {
     width: 100%;
+}
+
+.filters-bar button,
+.filters-bar .page-action {
+    min-height: 44px;
+    box-sizing: border-box;
 }
 
 .filter-secondary-actions {
@@ -448,6 +455,16 @@ button:disabled {
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 
+.signature-preview {
+    width: min(100%, 260px);
+    max-height: 110px;
+    object-fit: contain;
+    padding: 10px;
+    border: 1px solid #d8e1ec;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
 .profile-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -472,13 +489,13 @@ button:disabled {
 .complaint-list {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 28px;
 }
 
 .complaint-card {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 18px;
 }
 
 .complaint-card-header {
@@ -637,11 +654,17 @@ button:disabled {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-items: flex-start;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
 }
 
 .complaint-action-links .page-action {
     width: 100%;
+}
+
+.complaint-action-links > * {
+    min-width: 0;
 }
 
 .complaint-timeline {
@@ -847,8 +870,9 @@ button:disabled {
 .complaint-update-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
     min-width: 0;
+    padding: 12px 0 18px;
 }
 
 .complaint-confirmation-form {
@@ -858,12 +882,59 @@ button:disabled {
     width: 100%;
 }
 
+.blotter-sign-box {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 12px;
+    margin: 14px 0;
+    border: 1px solid #d8e1ec;
+    border-radius: 12px;
+    background: #f8fbff;
+    overflow: hidden;
+}
+
+.blotter-sign-box strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #12355b;
+}
+
+.blotter-sign-box .page-action {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.blotter-sign-box p {
+    margin-bottom: 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    line-height: 1.45;
+}
+
+.blotter-sign-box .table-muted {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
+.blotter-sign-box input[type="file"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+
 .complaint-update-form select,
 .complaint-update-form textarea,
 .complaint-update-form button,
+.complaint-confirmation-form input[type="file"],
 .complaint-confirmation-form textarea,
 .complaint-confirmation-form button {
     width: 100%;
+    min-width: 0;
     margin: 0;
 }
 
@@ -1269,7 +1340,7 @@ button:disabled {
     gap: 14px;
     flex-wrap: wrap;
     width: 100%;
-    margin-top: 14px;
+    margin-top: 18px;
     padding: 14px 16px;
     background: #ffffff;
     border: 1px solid #e5eaf2;
@@ -1411,13 +1482,36 @@ button:disabled {
 }
 
 .complaint-filter-bar .filter-actions {
-    flex: 2 1 320px;
+    display: flex;
+    flex-direction: row;
+    align-items: end;
+    justify-content: flex-start;
+    flex: 0 0 auto;
+    gap: 12px;
+    width: auto;
+}
+
+.complaint-filter-bar .filter-primary-action,
+.complaint-filter-bar .filter-secondary-actions {
+    width: auto;
+}
+
+.complaint-filter-bar .filter-primary-action button,
+.complaint-filter-bar .filter-secondary-actions .page-action {
+    width: auto;
+    min-width: 150px;
+    padding-left: 18px;
+    padding-right: 18px;
 }
 
 .complaint-filter-bar .filter-secondary-actions {
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     padding-top: 0;
+}
+
+.complaint-filter-bar .filter-secondary-actions .page-action {
+    min-width: 0;
 }
 
 .action-links a:hover {
@@ -1456,7 +1550,7 @@ table {
 
 .staff-complaints-table tbody {
     display: grid;
-    gap: 18px;
+    gap: 30px;
 }
 
 .staff-complaints-table tr:first-child {
@@ -1466,6 +1560,7 @@ table {
 .staff-complaints-table tr {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 0;
     overflow: hidden;
     border: 1px solid #d8e1ec;
     border-radius: 18px;
@@ -1639,6 +1734,17 @@ th {
 
 .staff-complaints-table .action-cell {
     grid-column: 1 / -1;
+    padding-top: 16px;
+    padding-bottom: 18px;
+}
+
+.admin-complaints-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.staff-complaints-table .action-cell > * + * {
+    margin-top: 14px;
 }
 
 .staff-complaints-table td::before {
@@ -1694,8 +1800,66 @@ th {
 }
 
 @media screen and (max-width: 900px) {
+    .admin-complaints-table {
+        display: block;
+        min-width: 0;
+        width: 100%;
+        background: transparent;
+    }
+
+    .admin-complaints-table tbody {
+        display: grid;
+        gap: 24px;
+    }
+
+    .admin-complaints-table tr:first-child {
+        display: none;
+    }
+
+    .admin-complaints-table tr {
+        display: grid;
+        grid-template-columns: 1fr;
+        overflow: hidden;
+        border: 1px solid #d8e1ec;
+        border-radius: 16px;
+        background: #ffffff;
+    }
+
+    .admin-complaints-table td {
+        display: block;
+        width: auto !important;
+        min-width: 0;
+        padding: 14px;
+        border-right: 0;
+        border-bottom: 1px solid #e8edf4;
+    }
+
+    .admin-complaints-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .admin-complaints-table td::before {
+        display: block;
+        margin-bottom: 8px;
+        color: #163a63;
+        content: attr(data-label);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .admin-complaints-table .action-links,
+    .admin-complaints-table form,
+    .admin-complaints-table select,
+    .admin-complaints-table button,
+    .admin-complaints-table .page-action {
+        width: 100%;
+    }
+
     .staff-complaints-table tr {
         grid-template-columns: 1fr;
+        margin-bottom: 8px;
     }
 
     .staff-complaints-table td,
@@ -1703,6 +1867,8 @@ th {
     .staff-complaints-table td:nth-last-child(-n + 3) {
         border-right: 0;
         border-bottom: 1px solid #e8edf4;
+        padding-top: 14px;
+        padding-bottom: 16px;
     }
 
     .staff-complaints-table td:last-child {
@@ -1711,6 +1877,8 @@ th {
 
     .staff-complaints-table .action-cell {
         grid-column: auto;
+        padding-top: 18px;
+        padding-bottom: 22px;
     }
 }
 
@@ -1843,7 +2011,13 @@ th {
         margin-left: 0;
         width: 100%;
         padding: 18px;
-        gap: 18px;
+        gap: 24px;
+    }
+
+    .page-shell,
+    .dashboard-wrapper,
+    .complaint-list {
+        gap: 24px;
     }
 
     .topbar {
@@ -1948,6 +2122,19 @@ th {
         align-items: stretch;
     }
 
+    .complaint-filter-bar .filter-actions {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .complaint-filter-bar .filter-primary-action,
+    .complaint-filter-bar .filter-secondary-actions,
+    .complaint-filter-bar .filter-primary-action button,
+    .complaint-filter-bar .filter-secondary-actions .page-action {
+        width: 100%;
+    }
+
     .filter-secondary-actions {
         flex-direction: column;
         align-items: stretch;
@@ -2048,6 +2235,7 @@ th {
 
     .main {
         padding: 14px;
+        gap: 22px;
     }
 
     .sidebar-brand {
@@ -2071,8 +2259,14 @@ th {
     .table-card,
     .site-footer,
     .topbar {
-        padding: 18px;
+        padding: 20px;
         border-radius: 16px;
+    }
+
+    .page-shell,
+    .dashboard-wrapper,
+    .complaint-list {
+        gap: 22px;
     }
 
     h1 {
@@ -2107,7 +2301,11 @@ th {
     }
 
     .admin-complaints-table {
-        min-width: 1180px;
+        min-width: 0;
+    }
+
+    .admin-complaints-table.responsive-table {
+        min-width: 0;
     }
 
     .users-table {

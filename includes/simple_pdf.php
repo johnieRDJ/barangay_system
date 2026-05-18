@@ -4,6 +4,7 @@ class SimplePdf
 {
     private array $pages = [];
     private array $current = [];
+    private array $images = [];
     private float $x = 72;
     private float $y = 720;
     private float $fontSize = 12;
@@ -39,12 +40,56 @@ class SimplePdf
         $x = $x ?? $this->x;
         $y = $y ?? $this->y;
         $this->current[] = [
+            'type' => 'text',
             'text' => $text,
             'x' => $x,
             'y' => $y,
             'size' => $this->fontSize,
             'align' => $align,
         ];
+    }
+
+    public function getY(): float
+    {
+        return $this->y;
+    }
+
+    public function setY(float $y): void
+    {
+        $this->y = $y;
+    }
+
+    public function image(string $path, float $x, float $y, float $width, ?float $height = null): bool
+    {
+        $info = @getimagesize($path);
+
+        if(!$info || !in_array($info[2], [IMAGETYPE_JPEG], true)){
+            return false;
+        }
+
+        $height = $height ?? ($width * $info[1] / $info[0]);
+        $key = realpath($path) ?: $path;
+
+        if(!isset($this->images[$key])){
+            $this->images[$key] = [
+                'path' => $path,
+                'width' => $info[0],
+                'height' => $info[1],
+                'name' => 'Im' . (count($this->images) + 1),
+                'object_id' => null,
+            ];
+        }
+
+        $this->current[] = [
+            'type' => 'image',
+            'key' => $key,
+            'x' => $x,
+            'y' => $y,
+            'width' => $width,
+            'height' => $height,
+        ];
+
+        return true;
     }
 
     public function line(string $text = ''): void
@@ -93,6 +138,11 @@ class SimplePdf
         $pagesId = 2;
         $fontId = 3;
         $nextId = 4;
+
+        foreach(array_keys($this->images) as $imageKey){
+            $this->images[$imageKey]['object_id'] = $nextId++;
+        }
+
         $pageIds = [];
         $contentIds = [];
 
@@ -102,8 +152,25 @@ class SimplePdf
             $pageIds[] = $pageId;
             $contentIds[] = $contentId;
 
-            $stream = "BT\n/F1 12 Tf\n";
+            $stream = '';
             foreach($page as $item){
+                if(($item['type'] ?? 'text') === 'image'){
+                    $image = $this->images[$item['key']] ?? null;
+
+                    if($image){
+                        $stream .= sprintf(
+                            "q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n",
+                            $item['width'],
+                            $item['height'],
+                            $item['x'],
+                            $item['y'],
+                            $image['name']
+                        );
+                    }
+
+                    continue;
+                }
+
                 $x = $item['x'];
                 $text = $this->escape($item['text']);
 
@@ -112,13 +179,24 @@ class SimplePdf
                     $x -= $estimatedWidth;
                 }
 
-                $stream .= sprintf("/F1 %.2F Tf\n%.2F %.2F Td\n(%s) Tj\n", $item['size'], $x, $item['y'], $text);
-                $stream .= sprintf("%.2F %.2F Td\n", -$x, -$item['y']);
+                $stream .= sprintf("BT\n/F1 %.2F Tf\n%.2F %.2F Td\n(%s) Tj\nET\n", $item['size'], $x, $item['y'], $text);
             }
-            $stream .= "ET\n";
 
+            $xObjects = '';
+            foreach($this->images as $image){
+                $xObjects .= '/' . $image['name'] . ' ' . $image['object_id'] . ' 0 R ';
+            }
+            $resourceImages = $xObjects !== '' ? " /XObject << $xObjects >>" : '';
             $objects[$contentId] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream";
-            $objects[$pageId] = "<< /Type /Page /Parent $pagesId 0 R /MediaBox [0 0 {$this->pageWidth} {$this->pageHeight}] /Resources << /Font << /F1 $fontId 0 R >> >> /Contents $contentId 0 R >>";
+            $objects[$pageId] = "<< /Type /Page /Parent $pagesId 0 R /MediaBox [0 0 {$this->pageWidth} {$this->pageHeight}] /Resources << /Font << /F1 $fontId 0 R >>$resourceImages >> /Contents $contentId 0 R >>";
+        }
+
+        foreach($this->images as $image){
+            $data = file_get_contents($image['path']);
+
+            if($data !== false){
+                $objects[$image['object_id']] = "<< /Type /XObject /Subtype /Image /Width {$image['width']} /Height {$image['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($data) . " >>\nstream\n" . $data . "\nendstream";
+            }
         }
 
         $objects[$catalogId] = "<< /Type /Catalog /Pages $pagesId 0 R >>";

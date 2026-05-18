@@ -23,8 +23,11 @@ function sendComplaintTimelineUpdate(
     $safeStatus = htmlspecialchars($status, ENT_QUOTES, 'UTF-8');
     $safeMessage = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
     $safeUpdatedBy = htmlspecialchars($updatedBy, ENT_QUOTES, 'UTF-8');
-    $complaintsUrl = $buttonUrl ?: rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/complainant/my_complaints.php';
+    $appUrl = rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/');
+    $complaintsUrl = $buttonUrl ?: $appUrl . '/complainant/my_complaints.php';
+    $loginUrl = $appUrl . '/auth/login.php';
     $safeComplaintsUrl = htmlspecialchars($complaintsUrl, ENT_QUOTES, 'UTF-8');
+    $safeLoginUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
 
     try{
         $mail->addAddress($email);
@@ -55,10 +58,13 @@ function sendComplaintTimelineUpdate(
 
                 <p style='margin-bottom: 8px;'>If the button does not work, copy and paste this link into your browser:</p>
                 <p style='word-break: break-all; margin-top: 0;'><a href='$safeComplaintsUrl'>$safeComplaintsUrl</a></p>
+
+                <p style='margin-bottom: 8px;'>Login here if the page asks you to sign in:</p>
+                <p style='word-break: break-all; margin-top: 0;'><a href='$safeLoginUrl'>$safeLoginUrl</a></p>
             </div>
         ";
 
-        $mail->AltBody = "Hello $fullname,\n\nA new update was added to this complaint.\n\nTracking Number: $trackingNumber\nSubject: $subject\nStatus: $status\nUpdated By: $updatedBy\n\nUpdate message:\n$message\n\nView the timeline here:\n$complaintsUrl";
+        $mail->AltBody = "Hello $fullname,\n\nA new update was added to this complaint.\n\nTracking Number: $trackingNumber\nSubject: $subject\nStatus: $status\nUpdated By: $updatedBy\n\nUpdate message:\n$message\n\nView the timeline here:\n$complaintsUrl\n\nLogin here if needed:\n$loginUrl";
         $mail->send();
 
         return true;
