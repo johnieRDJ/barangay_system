@@ -30,6 +30,41 @@ db_execute($conn,
  'i',
  [$user_id]);
 
+db_execute($conn,
+"DELETE complaint_updates
+ FROM complaint_updates
+ JOIN complaints duplicate_complaint ON complaint_updates.complaint_id = duplicate_complaint.complaint_id
+ JOIN complaints original_complaint
+   ON original_complaint.complainant_id = duplicate_complaint.complainant_id
+  AND original_complaint.subject = duplicate_complaint.subject
+  AND original_complaint.description = duplicate_complaint.description
+  AND original_complaint.status = duplicate_complaint.status
+  AND original_complaint.assigned_staff_id IS NULL
+  AND ABS(TIMESTAMPDIFF(SECOND, original_complaint.created_at, duplicate_complaint.created_at)) <= 300
+  AND original_complaint.complaint_id < duplicate_complaint.complaint_id
+ WHERE duplicate_complaint.complainant_id=?
+ AND duplicate_complaint.status='Pending'
+ AND duplicate_complaint.assigned_staff_id IS NULL",
+ 'i',
+ [$user_id]);
+
+db_execute($conn,
+"DELETE duplicate_complaint
+ FROM complaints duplicate_complaint
+ JOIN complaints original_complaint
+   ON original_complaint.complainant_id = duplicate_complaint.complainant_id
+  AND original_complaint.subject = duplicate_complaint.subject
+  AND original_complaint.description = duplicate_complaint.description
+  AND original_complaint.status = duplicate_complaint.status
+  AND original_complaint.assigned_staff_id IS NULL
+  AND ABS(TIMESTAMPDIFF(SECOND, original_complaint.created_at, duplicate_complaint.created_at)) <= 300
+  AND original_complaint.complaint_id < duplicate_complaint.complaint_id
+ WHERE duplicate_complaint.complainant_id=?
+ AND duplicate_complaint.status='Pending'
+ AND duplicate_complaint.assigned_staff_id IS NULL",
+ 'i',
+ [$user_id]);
+
 if(isset($_POST['blotter_sign'])){
     $reportId = intval($_POST['report_id'] ?? 0);
     $complaintId = intval($_POST['complaint_id'] ?? 0);
@@ -405,6 +440,12 @@ if(!empty($complaintIds)){
     <?php if(isset($_GET['confirmation']) && $_GET['confirmation'] === 'confirmed'): ?>
         <div class="table-card">
             <p style="margin:0; color:#15803d; font-weight:600;">You confirmed that the complaint has been resolved.</p>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_GET['submitted'])): ?>
+        <div class="table-card">
+            <p style="margin:0; color:#15803d; font-weight:600;">Complaint submitted successfully. You can print it anytime from your complaint details.</p>
         </div>
     <?php endif; ?>
 

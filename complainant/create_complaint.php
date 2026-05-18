@@ -11,17 +11,46 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'complainant'){
 
 $form_error = '';
 
+if(empty($_SESSION['complaint_submit_token'])){
+    $_SESSION['complaint_submit_token'] = bin2hex(random_bytes(16));
+}
+
 if(isset($_POST['submit'])){
 
     // Sanitize input to prevent SQL errors
     $subject = trim($_POST['subject'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $submittedToken = $_POST['submit_token'] ?? '';
 
-    $user_id = $_SESSION['user_id'];
+    $user_id = intval($_SESSION['user_id']);
+
+    if(!hash_equals($_SESSION['complaint_submit_token'] ?? '', $submittedToken)){
+        header("Location: my_complaints.php?submitted=1");
+        exit();
+    }
 
     if($subject === '' || $description === ''){
         $form_error = 'Please complete the subject and complaint details.';
     } else {
+        unset($_SESSION['complaint_submit_token']);
+
+        $recentDuplicate = db_select_one($conn,
+        "SELECT complaint_id
+         FROM complaints
+         WHERE complainant_id=?
+         AND subject=?
+         AND description=?
+         AND created_at >= (NOW() - INTERVAL 60 SECOND)
+         ORDER BY complaint_id DESC
+         LIMIT 1",
+         'iss',
+         [$user_id, $subject, $description]);
+
+        if($recentDuplicate){
+            header("Location: my_complaints.php?submitted=1");
+            exit();
+        }
+
         // Insert complaint
         db_execute($conn,
         "INSERT INTO complaints (complainant_id, subject, description)
@@ -57,12 +86,16 @@ if(isset($_POST['submit'])){
              'is',
              [$user_id, "Created complaint $tracking_number"]);
 
-            header("Location: print_ticket.php?id=" . $complaint_id . "&submitted=1");
+            header("Location: my_complaints.php?submitted=1");
             exit();
         }
 
         $form_error = 'Unable to submit complaint. Please try again.';
     }
+}
+
+if(empty($_SESSION['complaint_submit_token'])){
+    $_SESSION['complaint_submit_token'] = bin2hex(random_bytes(16));
 }
 
 include('../includes/header.php');
@@ -78,6 +111,7 @@ include('../includes/sidebar.php');
 <?php endif; ?>
 
 <form method="POST">
+    <input type="hidden" name="submit_token" value="<?php echo htmlspecialchars($_SESSION['complaint_submit_token']); ?>">
     <input type="text" name="subject" placeholder="Subject" required>
     <textarea name="description" placeholder="Complaint Details" required></textarea>
     <button type="submit" name="submit">Submit</button>
