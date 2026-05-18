@@ -1,10 +1,10 @@
 <?php
 return [
-    'app_url' => 'https://brngycomplaint.argy.host',
+    'app_url' => 'https://brgycomplaint.argy.host',
     'database' => [
         'host' => 'localhost',
         'username' => 'u845277124_brngycomplaint',
-        'password' => 'BrngyComplaint_2003',
+        'password' => 'Brngyomplaint_2003',
         'name' => 'u845277124_brngycomplaint',
     ],
     'mail' => [
