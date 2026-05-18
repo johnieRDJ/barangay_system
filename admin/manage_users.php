@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
 }
 
 include('../config/database.php');
+include('../includes/pagination.php');
 
 // ============================
 // DELETE USER
@@ -103,14 +104,23 @@ elseif($residency_filter != ""){
 
 $where_sql = implode(" AND ", $where_conditions);
 
+$pagination = pagination_state($conn,
+"SELECT COUNT(*) AS total
+ FROM users
+ LEFT JOIN residency ON users.user_id = residency.user_id
+ WHERE $where_sql",
+ $types,
+ $params);
+
 $users = db_select_all($conn,
 "SELECT users.*, residency.status AS residency_status
  FROM users
  LEFT JOIN residency ON users.user_id = residency.user_id
  WHERE $where_sql
- ORDER BY users.role, users.lastname, users.firstname",
+ ORDER BY users.role, users.lastname, users.firstname" . $pagination['limit_sql'],
  $types,
- $params);
+ $params
+);
 
 $status_message = "";
 if(isset($_SESSION['status_message'])){
@@ -140,6 +150,9 @@ window.addEventListener('DOMContentLoaded', function () {
 </div>
 
 <form method="GET" class="filters-bar">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
+
     <div class="filter-group filter-search">
         <label for="search">Search</label>
         <input type="text" id="search" name="search" placeholder="Search name or email..." value="<?php echo htmlspecialchars($search); ?>">
@@ -266,6 +279,7 @@ else{
 
 </table>
 </div>
+<?php render_pagination($pagination, 'users'); ?>
 
 </div>
 

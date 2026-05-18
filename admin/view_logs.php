@@ -7,14 +7,20 @@ if($_SESSION['role'] != 'admin'){
 }
 
 include('../config/database.php');
+include('../includes/pagination.php');
 include('../includes/sidebar.php');
 
 // Join logs with users to get fullname
+$pagination = pagination_state($conn,
+"SELECT COUNT(*) AS total
+ FROM logs
+ JOIN users ON logs.user_id = users.user_id");
+
 $logs = db_select_all($conn,
 "SELECT logs.*, CONCAT(users.firstname,' ',users.lastname) AS fullname
  FROM logs
  JOIN users ON logs.user_id = users.user_id
- ORDER BY logs.log_time DESC");
+ ORDER BY logs.log_time DESC" . $pagination['limit_sql']);
 ?>
 
 <h1>System Logs</h1>
@@ -37,5 +43,6 @@ $logs = db_select_all($conn,
 
 </table>
 </div>
+<?php render_pagination($pagination, 'logs'); ?>
 
 <?php include('../includes/footer.php'); ?>

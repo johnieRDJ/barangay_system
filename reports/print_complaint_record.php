@@ -1,6 +1,13 @@
 <?php
 session_start();
 
+if(!headers_sent()){
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Cache-Control: post-check=0, pre-check=0', false);
+    header('Pragma: no-cache');
+    header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+}
+
 if(
     !isset($_SESSION['user_id'], $_SESSION['role']) ||
     !in_array($_SESSION['role'], ['admin', 'staff'], true)
@@ -67,6 +74,24 @@ if($complaint_id > 0){
          ORDER BY complaint_updates.created_at ASC, complaint_updates.update_id ASC",
          'i',
          [$complaint_id]);
+
+        $updateIds = array_map('intval', array_column($timeline, 'update_id'));
+        $attachmentsByUpdate = [];
+
+        if(!empty($updateIds)){
+            $placeholders = implode(',', array_fill(0, count($updateIds), '?'));
+            $attachmentRows = db_select_all($conn,
+            "SELECT complaint_update_attachments.*
+             FROM complaint_update_attachments
+             WHERE complaint_update_attachments.update_id IN ($placeholders)
+             ORDER BY complaint_update_attachments.attachment_id ASC",
+             str_repeat('i', count($updateIds)),
+             $updateIds);
+
+            foreach($attachmentRows as $attachmentRow){
+                $attachmentsByUpdate[intval($attachmentRow['update_id'])][] = $attachmentRow;
+            }
+        }
 
         db_execute($conn,
         "INSERT INTO logs (user_id, action)
@@ -211,6 +236,7 @@ include('../includes/sidebar.php');
                             <?php
                             $actorName = trim(($update['firstname'] ?? '') . ' ' . ($update['lastname'] ?? ''));
                             $actorLabel = $actorName !== '' ? $actorName : ucfirst($update['actor_role']);
+                            $attachments = $attachmentsByUpdate[intval($update['update_id'])] ?? [];
                             ?>
                             <div class="record-timeline-item">
                                 <div class="record-timeline-head">
@@ -219,13 +245,15 @@ include('../includes/sidebar.php');
                                 </div>
                                 <p class="timeline-item-meta">Updated by <?php echo htmlspecialchars($actorLabel); ?> | Type: <?php echo htmlspecialchars($update['update_type']); ?></p>
                                 <p><?php echo nl2br(htmlspecialchars($update['message'])); ?></p>
-                                <?php if(!empty($update['proof_path'])): ?>
-                                    <p class="record-proof">
-                                        Proof attachment:
-                                        <a href="../view_proof.php?update_id=<?php echo intval($update['update_id']); ?>" target="_blank" rel="noopener noreferrer">
-                                            <?php echo htmlspecialchars($update['proof_original_name'] ?: basename($update['proof_path'])); ?>
-                                        </a>
-                                    </p>
+                                <?php if(!empty($attachments)): ?>
+                                    <div class="record-proof">
+                                        <strong>Proof attachments:</strong>
+                                        <?php foreach($attachments as $attachment): ?>
+                                            <a href="../view_proof.php?attachment_id=<?php echo intval($attachment['attachment_id']); ?>">
+                                                <?php echo htmlspecialchars($attachment['original_name'] ?: basename($attachment['stored_path'])); ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>

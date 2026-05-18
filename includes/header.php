@@ -24,9 +24,49 @@ if(!isset($_SESSION['user_id'])){
     <?php $style_version = filemtime(__DIR__ . '/../css/style.css'); ?>
     <link rel="stylesheet" href="../css/style.css?v=<?php echo $style_version; ?>">
     <script>
+        const currentSessionRole = <?php echo json_encode($_SESSION['role'] ?? null); ?>;
+
+        function redirectBySessionState(data) {
+            if (!data.authenticated) {
+                window.location.href = '../auth/login.php';
+                return;
+            }
+
+            if (currentSessionRole && data.role !== currentSessionRole) {
+                window.location.href = '../index.php';
+            }
+        }
+
+        function checkSessionState() {
+            fetch('../auth/session_status.php', {
+                cache: 'no-store',
+                credentials: 'same-origin'
+            })
+                .then(function(response) {
+                    return response.ok ? response.json() : null;
+                })
+                .then(function(data) {
+                    if (data) {
+                        redirectBySessionState(data);
+                    }
+                })
+                .catch(function() {});
+        }
+
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
                 window.location.reload();
+                return;
+            }
+
+            checkSessionState();
+        });
+
+        window.addEventListener('focus', checkSessionState);
+
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                checkSessionState();
             }
         });
     </script>

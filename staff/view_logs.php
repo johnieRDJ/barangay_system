@@ -2,6 +2,7 @@
 session_start();
 
 include('../config/database.php');
+include('../includes/pagination.php');
 
 if(!isset($_SESSION['role']) || $_SESSION['role'] != 'staff'){
     header("Location: ../auth/login.php");
@@ -10,13 +11,23 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] != 'staff'){
 
 $user_id = intval($_SESSION['user_id']);
 
+$pagination = pagination_state(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM logs
+     JOIN users ON logs.user_id = users.user_id
+     WHERE logs.user_id = ?",
+    'i',
+    [$user_id]
+);
+
 $logs = db_select_all(
     $conn,
     "SELECT logs.*, users.firstname, users.lastname
      FROM logs
      JOIN users ON logs.user_id = users.user_id
      WHERE logs.user_id = ?
-     ORDER BY logs.log_time DESC",
+     ORDER BY logs.log_time DESC" . $pagination['limit_sql'],
     'i',
     [$user_id]
 );
@@ -58,5 +69,6 @@ include('../includes/sidebar.php');
 
 </table>
 </div>
+<?php render_pagination($pagination, 'logs'); ?>
 
 <?php include('../includes/footer.php'); ?>

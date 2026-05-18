@@ -34,16 +34,22 @@ if(isset($_POST['save'])){
 
     $address = trim($_POST['address'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $age = ($_POST['age'] ?? '') !== '' ? intval($_POST['age']) : null;
+    $gender = trim($_POST['gender'] ?? '');
+    $civil_status = trim($_POST['civil_status'] ?? '');
     $about = trim($_POST['about'] ?? '');
 
     db_execute($conn,
     "UPDATE user_profiles 
      SET address=?,
          phone=?,
+         age=?,
+         gender=?,
+         civil_status=?,
          about=?
      WHERE user_id=?",
-     'sssi',
-     [$address, $phone, $about, $user_id]);
+     'ssisssi',
+     [$address, $phone, $age, $gender, $civil_status, $about, $user_id]);
 
     db_execute($conn,
     "INSERT INTO logs (user_id, action)
@@ -115,7 +121,7 @@ if(isset($_POST['delete'])){
 ============================ */
 $user = db_select_one($conn,
 "SELECT u.firstname, u.lastname, u.email,
-        p.address, p.phone, p.about, p.profile_image
+        p.address, p.phone, p.age, p.gender, p.civil_status, p.about, p.profile_image
  FROM users u
  LEFT JOIN user_profiles p ON u.user_id = p.user_id
  WHERE u.user_id=?
@@ -162,6 +168,24 @@ $user = db_select_one($conn,
 
     <input type="text" name="phone" placeholder="Phone Number"
     value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"><br><br>
+
+    <input type="number" name="age" placeholder="Age" min="0"
+    value="<?php echo htmlspecialchars($user['age'] ?? ''); ?>"><br><br>
+
+    <select name="gender">
+        <option value="">Select Gender</option>
+        <option value="Male" <?php echo ($user['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+        <option value="Female" <?php echo ($user['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+        <option value="Other" <?php echo ($user['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+    </select><br><br>
+
+    <select name="civil_status">
+        <option value="">Select Civil Status</option>
+        <option value="Single" <?php echo ($user['civil_status'] ?? '') === 'Single' ? 'selected' : ''; ?>>Single</option>
+        <option value="Married" <?php echo ($user['civil_status'] ?? '') === 'Married' ? 'selected' : ''; ?>>Married</option>
+        <option value="Widowed" <?php echo ($user['civil_status'] ?? '') === 'Widowed' ? 'selected' : ''; ?>>Widowed</option>
+        <option value="Separated" <?php echo ($user['civil_status'] ?? '') === 'Separated' ? 'selected' : ''; ?>>Separated</option>
+    </select><br><br>
 
     <textarea name="about" placeholder="About you"><?php echo htmlspecialchars($user['about'] ?? ''); ?></textarea><br><br>
 

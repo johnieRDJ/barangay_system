@@ -2,6 +2,7 @@
 session_start();
 
 include('../config/database.php');
+include('../includes/pagination.php');
 include('../includes/complaint_updates.php');
 
 
@@ -19,10 +20,18 @@ if(isset($_POST['assign'])){
 
     $complaint_id = intval($_POST['complaint_id']);
     $staff_id = intval($_POST['staff_id']);
+    $postedPerPage = intval($_POST['per_page'] ?? 10);
+    $postedPerPage = in_array($postedPerPage, [10, 20, 30, 40, 50], true) ? $postedPerPage : 10;
+    $redirectQuery = http_build_query([
+        'page' => max(1, intval($_POST['page'] ?? 1)),
+        'per_page' => $postedPerPage,
+    ]);
+    $redirectUrl = 'manage_complaints.php' . ($redirectQuery !== '' ? '?' . $redirectQuery : '');
 
     // Check if already assigned
     $check = db_select_one($conn,
     "SELECT complaints.assigned_staff_id,
+            complaints.status,
             complaints.tracking_number,
             complaints.subject,
             users.email,
@@ -36,7 +45,12 @@ if(isset($_POST['assign'])){
      [$complaint_id]);
 
     if(!$check){
-        header("Location: manage_complaints.php");
+        header("Location: $redirectUrl");
+        exit();
+    }
+
+    if($check['status'] === 'Cancelled'){
+        header("Location: $redirectUrl");
         exit();
     }
 
@@ -100,7 +114,7 @@ if(isset($_POST['assign'])){
     );
     }
 
-    header("Location: manage_complaints.php");
+    header("Location: $redirectUrl");
     exit();
 }
 
@@ -110,6 +124,12 @@ include('../includes/sidebar.php');
 // ============================
 //  GET DATA
 // ============================
+$pagination = pagination_state($conn,
+"SELECT COUNT(*) AS total
+ FROM complaints
+ JOIN users u ON complaints.complainant_id = u.user_id
+ LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id");
+
 $complaints = db_select_all($conn,
 "SELECT complaints.*, 
         u.firstname AS fname, u.lastname AS lname, u.email,
@@ -117,7 +137,7 @@ $complaints = db_select_all($conn,
  FROM complaints
  JOIN users u ON complaints.complainant_id = u.user_id
  LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id
- ORDER BY complaints.complaint_id DESC");
+ ORDER BY complaints.complaint_id DESC" . $pagination['limit_sql']);
 
 // Only approved staff
 $staffRows = db_select_all($conn,
@@ -156,6 +176,9 @@ $staffRows = db_select_all($conn,
 if($row['status'] == 'Pending'){
     echo "<span style='color:orange;'>Pending</span>";
 }
+elseif($row['status'] == 'Cancelled'){
+    echo "<span class='status-badge status-cancelled'>Cancelled</span>";
+}
 elseif($row['status'] == 'Resolved' && $row['resolution_confirmation'] == 'pending'){
     echo "<span style='color:#1d4f91;'>Awaiting Confirmation</span>";
 }
@@ -184,13 +207,17 @@ if($row['staff_fname']){
 <td>
 
 <div class="action-links" style="margin-bottom:10px;">
-    <a href="../reports/print_complaint_record.php?id=<?php echo intval($row['complaint_id']); ?>" target="_blank" rel="noopener noreferrer">Print Record</a>
+    <a href="../reports/print_complaint_record.php?id=<?php echo intval($row['complaint_id']); ?>">Print Record</a>
 </div>
 
-<!--  ALWAYS ALLOW ASSIGN / REASSIGN -->
+<?php if($row['status'] === 'Cancelled'): ?>
+    <span class="table-muted">Cancelled by complainant</span>
+<?php else: ?>
 <form method="POST">
 
 <input type="hidden" name="complaint_id" value="<?php echo $row['complaint_id']; ?>">
+<input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">
+<input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
 <select name="staff_id" required>
 
 <?php
@@ -210,6 +237,7 @@ foreach($staffRows as $s):
 </button>
 
 </form>
+<?php endif; ?>
 
 
 
@@ -221,6 +249,7 @@ foreach($staffRows as $s):
 
 </table>
 </div>
+<?php render_pagination($pagination, 'complaints'); ?>
 
 
 

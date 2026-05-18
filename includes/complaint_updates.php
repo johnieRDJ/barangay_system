@@ -10,9 +10,9 @@ function addComplaintUpdate(
     string $message,
     ?string $proofPath = null,
     ?string $proofOriginalName = null
-): void
+): ?int
 {
-    db_execute(
+    $stmt = db_prepared_query(
         $conn,
         "INSERT INTO complaint_updates (
             complaint_id,
@@ -43,6 +43,42 @@ function addComplaintUpdate(
             $message,
             $proofPath,
             $proofOriginalName
+        ]
+    );
+
+    if(!$stmt){
+        return null;
+    }
+
+    mysqli_stmt_close($stmt);
+    return intval(mysqli_insert_id($conn));
+}
+
+function addComplaintUpdateAttachment(
+    mysqli $conn,
+    int $updateId,
+    string $storedPath,
+    string $originalName,
+    string $fileType,
+    int $fileSize
+): void
+{
+    db_execute(
+        $conn,
+        "INSERT INTO complaint_update_attachments (
+            update_id,
+            stored_path,
+            original_name,
+            file_type,
+            file_size
+        ) VALUES (?, ?, ?, ?, ?)",
+        'isssi',
+        [
+            $updateId,
+            $storedPath,
+            $originalName,
+            $fileType,
+            $fileSize
         ]
     );
 }

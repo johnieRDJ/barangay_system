@@ -139,9 +139,30 @@ foreach($uniqueUserTables as $table => $indexName){
     }
 }
 
+$profileExtraColumns = [
+    'age' => "ALTER TABLE user_profiles ADD COLUMN age INT(3) DEFAULT NULL AFTER phone",
+    'gender' => "ALTER TABLE user_profiles ADD COLUMN gender VARCHAR(50) DEFAULT NULL AFTER age",
+    'civil_status' => "ALTER TABLE user_profiles ADD COLUMN civil_status VARCHAR(50) DEFAULT NULL AFTER gender",
+];
+foreach($profileExtraColumns as $columnName => $alterSql){
+    $profileColumn = mysqli_query($conn, "SHOW COLUMNS FROM user_profiles LIKE '$columnName'");
+    if($profileColumn instanceof mysqli_result && mysqli_num_rows($profileColumn) === 0){
+        mysqli_query($conn, $alterSql);
+    }
+}
+
 $complaintResolutionColumn = mysqli_query($conn, "SHOW COLUMNS FROM complaints LIKE 'resolution_confirmation'");
 if($complaintResolutionColumn instanceof mysqli_result && mysqli_num_rows($complaintResolutionColumn) === 0){
     mysqli_query($conn, "ALTER TABLE complaints ADD COLUMN resolution_confirmation ENUM('pending','confirmed','reopened') DEFAULT NULL AFTER status");
+}
+
+$complaintStatusColumn = mysqli_query($conn, "SHOW COLUMNS FROM complaints LIKE 'status'");
+if($complaintStatusColumn instanceof mysqli_result){
+    $statusColumn = mysqli_fetch_assoc($complaintStatusColumn);
+
+    if($statusColumn && stripos($statusColumn['Type'], 'enum(') === 0 && strpos($statusColumn['Type'], "'Cancelled'") === false){
+        mysqli_query($conn, "ALTER TABLE complaints MODIFY status ENUM('Pending','In Progress','Resolved','Cancelled') NOT NULL DEFAULT 'Pending'");
+    }
 }
 
 mysqli_query($conn, "UPDATE complaints
@@ -172,6 +193,43 @@ $complaintUpdateProofNameColumn = mysqli_query($conn, "SHOW COLUMNS FROM complai
 if($complaintUpdateProofNameColumn instanceof mysqli_result && mysqli_num_rows($complaintUpdateProofNameColumn) === 0){
     mysqli_query($conn, "ALTER TABLE complaint_updates ADD COLUMN proof_original_name VARCHAR(255) DEFAULT NULL AFTER proof_path");
 }
+
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS complaint_update_attachments (
+    attachment_id INT(11) NOT NULL AUTO_INCREMENT,
+    update_id INT(11) NOT NULL,
+    stored_path VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) DEFAULT NULL,
+    file_size INT(11) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (attachment_id),
+    KEY update_id (update_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+mysqli_query($conn, "INSERT INTO complaint_update_attachments (
+    update_id,
+    stored_path,
+    original_name,
+    file_type,
+    file_size,
+    created_at
+)
+SELECT
+    complaint_updates.update_id,
+    complaint_updates.proof_path,
+    COALESCE(NULLIF(complaint_updates.proof_original_name, ''), SUBSTRING_INDEX(complaint_updates.proof_path, '/', -1)),
+    LOWER(SUBSTRING_INDEX(complaint_updates.proof_path, '.', -1)),
+    NULL,
+    complaint_updates.created_at
+FROM complaint_updates
+WHERE complaint_updates.proof_path IS NOT NULL
+AND complaint_updates.proof_path != ''
+AND NOT EXISTS (
+    SELECT 1
+    FROM complaint_update_attachments
+    WHERE complaint_update_attachments.update_id = complaint_updates.update_id
+    AND complaint_update_attachments.stored_path = complaint_updates.proof_path
+)");
 
 mysqli_query($conn, "INSERT INTO complaint_updates (
     complaint_id,
@@ -237,6 +295,27 @@ if($complaintUpdatesActorFk instanceof mysqli_result && mysqli_num_rows($complai
         ADD CONSTRAINT fk_complaint_updates_actor
         FOREIGN KEY (actor_user_id) REFERENCES users (user_id)
         ON DELETE SET NULL");
+    }
+}
+
+$complaintAttachmentsUpdateFk = mysqli_query($conn, "SELECT CONSTRAINT_NAME
+FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'complaint_update_attachments'
+AND COLUMN_NAME = 'update_id'
+AND REFERENCED_TABLE_NAME = 'complaint_updates'
+LIMIT 1");
+if($complaintAttachmentsUpdateFk instanceof mysqli_result && mysqli_num_rows($complaintAttachmentsUpdateFk) === 0){
+    $attachmentOrphans = mysqli_query($conn, "SELECT complaint_update_attachments.attachment_id
+    FROM complaint_update_attachments
+    LEFT JOIN complaint_updates ON complaint_updates.update_id = complaint_update_attachments.update_id
+    WHERE complaint_updates.update_id IS NULL
+    LIMIT 1");
+    if($attachmentOrphans instanceof mysqli_result && mysqli_num_rows($attachmentOrphans) === 0){
+        mysqli_query($conn, "ALTER TABLE complaint_update_attachments
+        ADD CONSTRAINT fk_complaint_update_attachments_update
+        FOREIGN KEY (update_id) REFERENCES complaint_updates (update_id)
+        ON DELETE CASCADE");
     }
 }
 ?>

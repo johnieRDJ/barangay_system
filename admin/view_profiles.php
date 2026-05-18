@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
 }
 
 include('../config/database.php');
+include('../includes/pagination.php');
 include('../includes/header.php');
 include('../includes/sidebar.php');
 
@@ -50,18 +51,33 @@ if($residency === 'none'){
 
 $whereSql = implode(' AND ', $where);
 
+$pagination = pagination_state(
+    $conn,
+    "SELECT COUNT(*) AS total
+     FROM users
+     LEFT JOIN user_profiles ON users.user_id = user_profiles.user_id
+     LEFT JOIN residency ON users.user_id = residency.user_id
+     WHERE $whereSql",
+    $types,
+    $params
+);
+
 $profiles = db_select_all(
     $conn,
     "SELECT users.*,
             user_profiles.address,
             user_profiles.phone,
+            user_profiles.age,
+            user_profiles.gender,
+            user_profiles.civil_status,
             user_profiles.about,
             user_profiles.profile_image,
             residency.status AS residency_status
      FROM users
      LEFT JOIN user_profiles ON users.user_id = user_profiles.user_id
      LEFT JOIN residency ON users.user_id = residency.user_id
-     WHERE $whereSql",
+     WHERE $whereSql
+     ORDER BY users.lastname, users.firstname" . $pagination['limit_sql'],
     $types,
     $params
 );
@@ -70,6 +86,8 @@ $profiles = db_select_all(
 <h1>User Profiles</h1>
 
 <form method="GET" class="filters-bar">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
 
     <input type="text" name="search" placeholder="Search name/email"
     value="<?php echo htmlspecialchars($search); ?>">
@@ -112,7 +130,7 @@ $profiles = db_select_all(
 
     <h3><?php echo htmlspecialchars($row['firstname']." ".$row['lastname']); ?></h3>
 
-    <p><strong>Email:</strong> <?php echo htmlspecialchars($row['email']); ?></p>
+    <p><strong>Email:</strong> <span class="profile-email"><?php echo htmlspecialchars($row['email']); ?></span></p>
 
     <p><strong>Role:</strong> <?php echo htmlspecialchars(ucfirst($row['role'])); ?></p>
 
@@ -141,6 +159,9 @@ $profiles = db_select_all(
     </p>
 
     <p><strong>Phone:</strong> <?php echo htmlspecialchars($row['phone'] ?: 'N/A'); ?></p>
+    <p><strong>Age:</strong> <?php echo htmlspecialchars($row['age'] ?: 'N/A'); ?></p>
+    <p><strong>Gender:</strong> <?php echo htmlspecialchars($row['gender'] ?: 'N/A'); ?></p>
+    <p><strong>Civil Status:</strong> <?php echo htmlspecialchars($row['civil_status'] ?: 'N/A'); ?></p>
 
     <p><strong>Address:</strong> <?php echo htmlspecialchars($row['address'] ?: 'N/A'); ?></p>
 
@@ -153,5 +174,6 @@ $profiles = db_select_all(
 <?php endforeach; ?>
 
 </div>
+<?php render_pagination($pagination, 'profiles'); ?>
 
 <?php include('../includes/footer.php'); ?>

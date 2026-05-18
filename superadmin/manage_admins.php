@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'superadmin'){
 }
 
 include('../config/database.php');
+include('../includes/pagination.php');
 
 // DELETE ADMIN
 if(isset($_GET['delete'])){
@@ -27,8 +28,11 @@ if(isset($_GET['delete'])){
     exit();
 }
 
+$pagination = pagination_state($conn,
+"SELECT COUNT(*) AS total FROM users WHERE role='admin'");
+
 $admins = db_select_all($conn,
-"SELECT * FROM users WHERE role='admin'");
+"SELECT * FROM users WHERE role='admin' ORDER BY lastname, firstname" . $pagination['limit_sql']);
 
 include('../includes/header.php');
 include('../includes/sidebar.php');
@@ -63,5 +67,6 @@ include('../includes/sidebar.php');
 <?php endforeach; ?>
 </table>
 </div>
+<?php render_pagination($pagination, 'admins'); ?>
 
 <?php include('../includes/footer.php'); ?>

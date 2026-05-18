@@ -7,14 +7,20 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'superadmin'){
 }
 
 include('../config/database.php');
+include('../includes/pagination.php');
 include('../includes/header.php');
 include('../includes/sidebar.php');
+
+$pagination = pagination_state($conn,
+"SELECT COUNT(*) AS total
+ FROM logs
+ LEFT JOIN users ON logs.user_id = users.user_id");
 
 $logs = db_select_all($conn,
 "SELECT logs.*, users.firstname, users.lastname
  FROM logs
  LEFT JOIN users ON logs.user_id = users.user_id
- ORDER BY log_time DESC");
+ ORDER BY log_time DESC" . $pagination['limit_sql']);
 ?>
 
 <h2>System Logs</h2>
@@ -47,5 +53,6 @@ echo $row['firstname']
 
 </table>
 </div>
+<?php render_pagination($pagination, 'logs'); ?>
 
 <?php include('../includes/footer.php'); ?>

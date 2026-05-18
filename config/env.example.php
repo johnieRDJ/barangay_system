@@ -4,7 +4,7 @@ return [
     'database' => [
         'host' => 'localhost',
         'username' => 'u845277124_brngycomplaint',
-        'password' => 'Brngycomplaint123',
+        'password' => 'BrngyComplaint_2003',
         'name' => 'u845277124_brngycomplaint',
     ],
     'mail' => [
