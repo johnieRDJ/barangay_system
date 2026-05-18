@@ -8,7 +8,7 @@ $config = [
         'password' => 'xygl mvhd jfpv jjsx',
         'encryption' => 'tls',
         'port' => 587,
-        'from_email' => 'argierydertz@gmail.com',
+        'from_email' => 'argieryderts@gmail.com',
         'from_name' => 'Barangay Digital Complaint System',
     ],
 ];
@@ -22,7 +22,7 @@ if($isArgyHost){
     $config['database'] = [
         'host' => 'localhost',
         'username' => 'u845277124_brngycomplaint',
-        'password' => 'BrngyComplaint_2003',
+        'password' => 'brngycomplaint_2003',
         'name' => 'u845277124_brngycomplaint',
     ];
 }
