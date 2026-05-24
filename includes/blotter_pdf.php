@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/simple_pdf.php';
 require_once __DIR__ . '/validation.php';
-require_once __DIR__ . '/pdf_header_image.php';
+require_once __DIR__ . '/paper_pdf.php';
 
 function blotter_pdf_jpeg_path(?string $relativePath, bool $cleanSignature = false): ?string
 {
@@ -67,35 +67,12 @@ function blotter_pdf_selected_text(array $selected, string $otherValue = '', str
 function render_blotter_pdf(array $data, array $signatures, string $destinationPath): bool
 {
     $pdf = new SimplePdf();
-    $headerImage = pdf_header_image_path($data['province'] ?? '', $data['city'] ?? '', $data['barangay'] ?? '');
+    paper_pdf_header($pdf, 'BARANGAY BLOTTER / COMPLAINT REPORT', [
+        'province' => $data['province'] ?? '',
+        'city' => $data['city'] ?? '',
+        'barangay' => $data['barangay'] ?? '',
+    ]);
 
-    if($headerImage){
-        $pdf->image($headerImage, 71, 646, 470, 92);
-    } else {
-        $citySeal = blotter_pdf_jpeg_path('uploads/system/tangub_off_seal.jpg');
-        $provinceSeal = blotter_pdf_jpeg_path('uploads/system/mis_occ_official_seal.jpg');
-
-        if($citySeal){
-            $pdf->image($citySeal, 150, 674, 62, 62);
-        }
-
-        if($provinceSeal){
-            $pdf->image($provinceSeal, 400, 674, 62, 62);
-        }
-
-        $pdf->setY(710);
-        $pdf->setFontSize(11);
-        $pdf->center('Republic of the Philippines');
-        $pdf->center('Province of ' . (($data['province'] ?? '') ?: '____________________'));
-        $pdf->center('City/Municipality of ' . (($data['city'] ?? '') ?: '____________________'));
-        $pdf->center('Barangay ' . (($data['barangay'] ?? '') ?: '____________________'));
-        $pdf->center('Office of the Punong Barangay');
-    }
-
-    $pdf->setY(608);
-    $pdf->setFontSize(12);
-    $pdf->line('BARANGAY BLOTTER / COMPLAINT REPORT');
-    $pdf->blank(10);
     $pdf->labelValue('Blotter No.', $data['blotter_no'] ?? '');
     $pdf->labelValue('Date Filed', $data['date_filed'] ?? '');
     $pdf->labelValue('Time Filed', $data['time_filed'] ?? '');

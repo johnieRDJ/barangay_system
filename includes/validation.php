@@ -449,5 +449,24 @@ function barangay_process_signature_upload(array $file, string $folder, int $use
 
     return $storedName;
 }
+
+function barangay_process_signature_base64(string $dataUrl, string $originalName, string $folder, int $userId): ?string
+{
+    $storedName = barangay_save_base64_image($dataUrl, $originalName, $folder, $userId, barangay_max_image_upload_bytes());
+    if(!$storedName){
+        return null;
+    }
+
+    $sourcePath = rtrim($folder, '/\\') . DIRECTORY_SEPARATOR . $storedName;
+    $processedName = pathinfo($storedName, PATHINFO_FILENAME) . '_clean.jpg';
+    $processedPath = rtrim($folder, '/\\') . DIRECTORY_SEPARATOR . $processedName;
+
+    if(barangay_clean_signature_image_file($sourcePath, $processedPath)){
+        @unlink($sourcePath);
+        return $processedName;
+    }
+
+    return $storedName;
+}
 }
 ?>

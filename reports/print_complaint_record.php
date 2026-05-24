@@ -134,7 +134,7 @@ if(empty($timeline)){
     }
 }
 
-$pdf->addPage();
+$pdf->keepTogether(170);
 $pdf->line('V. SIGNATURES');
 $pdf->blank(8);
 paper_pdf_signature($pdf, 'Prepared By', $preparedByName, $preparedSignature);

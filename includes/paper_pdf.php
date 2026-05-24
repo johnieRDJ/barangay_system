@@ -60,14 +60,15 @@ function paper_pdf_header(SimplePdf $pdf, string $title, array $location = []): 
 function paper_pdf_signature(SimplePdf $pdf, string $label, string $name, ?string $signaturePath = null): void
 {
     $pdf->line($label . ':');
-    $lineY = $pdf->getY() + 2;
-    $pdf->horizontalLine(170, $lineY - 3, 445);
+    $signatureY = $pdf->getY();
+    $pdf->text('Signature:', 72, $signatureY);
+    $pdf->horizontalLine(170, $signatureY - 3, 445);
 
     if($signaturePath){
-        $pdf->image($signaturePath, 280, max(72, $lineY - 5), 92, 32);
+        $pdf->image($signaturePath, 280, max(72, $signatureY), 92, 32);
     }
 
-    $pdf->labelValue('Signature', '');
+    $pdf->setY($signatureY - 16);
     $pdf->labelValue('Name', $name);
     $pdf->labelValue('Date', date('F j, Y'));
     $pdf->blank(8);

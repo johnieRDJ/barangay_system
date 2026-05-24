@@ -70,6 +70,8 @@ db_execute($conn,
 if(isset($_POST['blotter_sign'])){
     $reportId = intval($_POST['report_id'] ?? 0);
     $complaintId = intval($_POST['complaint_id'] ?? 0);
+    $signatureData = trim($_POST['complainant_signature_data'] ?? '');
+    $signatureName = trim($_POST['complainant_signature_name'] ?? '');
     $postedPerPage = intval($_POST['per_page'] ?? 10);
     $postedPerPage = in_array($postedPerPage, [10, 20, 30, 40, 50], true) ? $postedPerPage : 10;
     $postedStatusFilter = $_POST['status_filter'] ?? '';
@@ -101,18 +103,23 @@ if(isset($_POST['blotter_sign'])){
      'iii',
      [$reportId, $complaintId, $user_id]);
 
+    $hasSignatureData = $signatureData !== '';
+    $hasSignatureFile = !empty($_FILES['complainant_signature']['name']);
+
     if(!$report){
         $action_error = 'Blotter report is not available for signing.';
-    } elseif(empty($_FILES['complainant_signature']['name'])){
+    } elseif(!$hasSignatureData && !$hasSignatureFile){
         $action_error = 'Please attach your e-signature image.';
     } else {
-        $extension = strtolower(pathinfo($_FILES['complainant_signature']['name'], PATHINFO_EXTENSION));
+        $extension = $hasSignatureData
+            ? strtolower(pathinfo($signatureName !== '' ? $signatureName : 'signature.jpg', PATHINFO_EXTENSION))
+            : strtolower(pathinfo($_FILES['complainant_signature']['name'], PATHINFO_EXTENSION));
 
         if(!in_array($extension, ['jpg', 'jpeg', 'png'], true)){
             $action_error = 'Only JPG and PNG signatures are allowed.';
-        } elseif(intval($_FILES['complainant_signature']['size']) > barangay_max_image_upload_bytes()){
+        } elseif(!$hasSignatureData && intval($_FILES['complainant_signature']['size']) > barangay_max_image_upload_bytes()){
             $action_error = 'Signature image must be ' . barangay_max_upload_label() . ' or smaller.';
-        } elseif(($_FILES['complainant_signature']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK){
+        } elseif(!$hasSignatureData && ($_FILES['complainant_signature']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK){
             $action_error = 'The signature could not be uploaded. Please try again.';
         } else {
             $signatureFolder = realpath(__DIR__ . '/../uploads');
@@ -121,7 +128,9 @@ if(isset($_POST['blotter_sign'])){
             if($signatureFolder === false || (!is_dir($signatureFolder) && !mkdir($signatureFolder, 0777, true))){
                 $action_error = 'Could not create the signature upload folder.';
             } else {
-                $storedSignature = barangay_process_signature_upload($_FILES['complainant_signature'], $signatureFolder, $user_id);
+                $storedSignature = $hasSignatureData
+                    ? barangay_process_signature_base64($signatureData, $signatureName, $signatureFolder, $user_id)
+                    : barangay_process_signature_upload($_FILES['complainant_signature'], $signatureFolder, $user_id);
 
                 if($storedSignature){
                     db_execute($conn,
@@ -151,7 +160,7 @@ if(isset($_POST['blotter_sign'])){
                             'uploads/blotter_signatures/' . $storedSignature,
                             'Complainant E-Signature',
                             $extension,
-                            intval($_FILES['complainant_signature']['size'])
+                            $hasSignatureData ? strlen($signatureData) : intval($_FILES['complainant_signature']['size'])
                         );
                     }
 
@@ -612,8 +621,10 @@ if(!empty($complaintIds)){
                                     <a class="page-action secondary-action" href="../view_blotter_report.php?report_id=<?php echo intval($latestBlotterReport['report_id']); ?>">Open Blotter PDF</a>
                                     <?php if($latestBlotterReport['status'] === 'awaiting_complainant_signature'): ?>
                                         <p class="table-muted">Your e-signature is needed before staff can submit this report to admin.</p>
-                                        <form method="POST" action="my_complaints.php" enctype="multipart/form-data" class="complaint-confirmation-form">
+                                        <form method="POST" action="my_complaints.php" class="complaint-confirmation-form signature-base64-form">
                                             <input type="hidden" name="MAX_FILE_SIZE" value="<?php echo barangay_max_image_upload_bytes(); ?>">
+                                            <input type="hidden" name="complainant_signature_data" value="">
+                                            <input type="hidden" name="complainant_signature_name" value="">
                                             <input type="hidden" name="report_id" value="<?php echo intval($latestBlotterReport['report_id']); ?>">
                                             <input type="hidden" name="complaint_id" value="<?php echo $complaintId; ?>">
                                             <input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">
@@ -691,5 +702,81 @@ if(!empty($complaintIds)){
     </div>
     <?php render_pagination($pagination, 'complaints'); ?>
 </div>
+
+<script>
+document.addEventListener('submit', function(event) {
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !form.classList.contains('signature-base64-form')) {
+        return;
+    }
+
+    if (form.dataset.signaturePrepared === 'true') {
+        return;
+    }
+
+    const fileInput = form.querySelector('[name="complainant_signature"]');
+    const dataInput = form.querySelector('[name="complainant_signature_data"]');
+    const nameInput = form.querySelector('[name="complainant_signature_name"]');
+    const submitButton = event.submitter;
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+    if (!file || !dataInput || !nameInput) {
+        event.preventDefault();
+        alert('Please attach your e-signature image.');
+        return;
+    }
+
+    const maxBytes = 50 * 1024 * 1024;
+    const allowedTypes = ['image/jpeg', 'image/png'];
+
+    if (!allowedTypes.includes(file.type) || file.size > maxBytes) {
+        event.preventDefault();
+        alert('E-signature must be a JPG/JPEG or PNG image up to 50MB.');
+        return;
+    }
+
+    event.preventDefault();
+
+    const reader = new FileReader();
+    reader.onerror = function() {
+        alert('The e-signature image could not be read. Please choose another JPG/PNG image.');
+    };
+    reader.onload = function() {
+        const image = new Image();
+        image.onerror = function() {
+            alert('E-signature must be a readable JPG/JPEG or PNG image.');
+        };
+        image.onload = function() {
+            const maxDimension = 1800;
+            const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            dataInput.value = canvas.toDataURL('image/jpeg', 0.9);
+            nameInput.value = file.name.replace(/\.(png|jpe?g)$/i, '.jpg');
+            form.dataset.signaturePrepared = 'true';
+
+            if(submitButton && submitButton.name){
+                const hiddenSubmit = document.createElement('input');
+                hiddenSubmit.type = 'hidden';
+                hiddenSubmit.name = submitButton.name;
+                hiddenSubmit.value = submitButton.value || '1';
+                form.appendChild(hiddenSubmit);
+            }
+
+            form.submit();
+        };
+        image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}, true);
+</script>
 
 <?php include('../includes/footer.php'); ?>

@@ -6,7 +6,10 @@ if(!function_exists('pdf_header_image_font_path')){
         $paths = [
             'C:/Windows/Fonts/times.ttf',
             'C:/Windows/Fonts/Times.ttf',
+            '/usr/share/fonts/truetype/msttcorefonts/times.ttf',
             '/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
         ];
 
@@ -76,7 +79,7 @@ if(!function_exists('pdf_header_image_path')){
             return null;
         }
 
-        $hash = md5('v4|' . $province . '|' . $city . '|' . $barangay . '|' . filemtime($leftLogo) . '|' . filemtime($rightLogo));
+        $hash = md5('v5|' . $province . '|' . $city . '|' . $barangay . '|' . filemtime($leftLogo) . '|' . filemtime($rightLogo));
         $output = $systemDir . DIRECTORY_SEPARATOR . 'official_blotter_header_' . $hash . '.jpg';
 
         if(is_file($output)){
@@ -112,10 +115,10 @@ if(!function_exists('pdf_header_image_path')){
         }
 
         $fontPath = pdf_header_image_font_path();
-        $fontSize = 10 * $scale;
+        $fontSize = 12 * $scale;
         $centerX = (int)round($width / 2);
-        $lineY = 22 * $scale;
-        $lineGap = 13 * $scale;
+        $lineY = 18 * $scale;
+        $lineGap = 14 * $scale;
         $lines = [
             'Republic of the Philippines',
             'Province of ' . ($province !== '' ? $province : '____________________'),
