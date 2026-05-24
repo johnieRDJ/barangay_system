@@ -9,6 +9,8 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff'){
 include('../config/database.php');
 include('../includes/complaint_updates.php');
 include('../includes/send_complaint_update.php');
+require_once __DIR__ . '/../includes/notifications.php';
+include('../includes/validation.php');
 include('../includes/simple_pdf.php');
 include('../includes/blotter_pdf.php');
 
@@ -34,6 +36,23 @@ function post_value(string $key): string
     return trim($_POST[$key] ?? '');
 }
 
+function post_phone_value(string $key): string
+{
+    $tail = barangay_clean_phone($_POST[$key . '_tail'] ?? '');
+
+    if($tail !== ''){
+        return '09' . substr($tail, 0, 9);
+    }
+
+    return barangay_clean_phone(post_value($key));
+}
+
+function post_purok_value(string $key, string $fallback = ''): string
+{
+    $value = post_value($key) !== '' ? post_value($key) : $fallback;
+    return in_array((string)$value, barangay_allowed_puroks(), true) ? (string)$value : '';
+}
+
 function display_date(string $value): string
 {
     if($value === ''){
@@ -54,7 +73,7 @@ function display_time(string $value): string
     return $timestamp ? date('g:i A', $timestamp) : $value;
 }
 
-function pdf_jpeg_path(?string $relativePath): ?string
+function pdf_jpeg_path(?string $relativePath, bool $cleanSignature = false): ?string
 {
     if(!$relativePath){
         return null;
@@ -63,16 +82,34 @@ function pdf_jpeg_path(?string $relativePath): ?string
     $path = realpath(__DIR__ . '/../' . ltrim($relativePath, '/\\'));
     $extension = $path ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
 
-    return $path && in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
+    if(!$path || !in_array($extension, ['jpg', 'jpeg', 'png'], true)){
+        return null;
+    }
+
+    if($cleanSignature){
+        $cleanPath = dirname($path) . DIRECTORY_SEPARATOR . pathinfo($path, PATHINFO_FILENAME) . '_pdf_clean.jpg';
+
+        if(!is_file($cleanPath) || filemtime($cleanPath) < filemtime($path)){
+            barangay_clean_signature_image_file($path, $cleanPath);
+        }
+
+        if(is_file($cleanPath)){
+            return $cleanPath;
+        }
+    }
+
+    return in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
 }
 
 function pdf_signature_block(SimplePdf $pdf, string $label, string $name, string $date = '', ?string $signaturePath = null): void
 {
     $pdf->line($label . ':');
     $signatureLineY = $pdf->getY();
+    $pdf->text('Signature:', 72, $signatureLineY);
+    $pdf->horizontalLine(170, $signatureLineY - 3, 445);
 
     if($signaturePath){
-        $pdf->image($signaturePath, 300, max(72, $signatureLineY + 2), 46, 18);
+        $pdf->image($signaturePath, 280, max(72, $signatureLineY - 0), 92, 32);
     }
 
     $pdf->labelValue('Signature', '');
@@ -92,10 +129,12 @@ $complaint = db_select_one($conn,
         complainant.lastname AS complainant_lastname,
         complainant.email AS complainant_email,
         complainant_profile.address AS complainant_address,
+        complainant_profile.purok AS complainant_purok,
         complainant_profile.phone AS complainant_phone,
         complainant_profile.age AS complainant_age,
         complainant_profile.gender AS complainant_gender,
-        complainant_profile.civil_status AS complainant_civil_status
+        complainant_profile.civil_status AS complainant_civil_status,
+        complainant_profile.name_suffix AS complainant_name_suffix
  FROM complaints
  INNER JOIN users complainant ON complaints.complainant_id = complainant.user_id
  LEFT JOIN user_profiles complainant_profile ON complainant.user_id = complainant_profile.user_id
@@ -137,14 +176,17 @@ $staff = db_select_one($conn,
 [$userId]);
 $staffName = $staff ? trim($staff['firstname'] . ' ' . $staff['lastname']) : 'Barangay Staff';
 $staffSignature = $staff['signature_image'] ?? null;
-$complainantName = post_value('complainant_name') ?: trim($complaint['complainant_firstname'] . ' ' . $complaint['complainant_lastname']);
-$respondentName = post_value('respondent_name');
+$complainantSuffix = in_array(post_value('complainant_suffix'), barangay_allowed_suffixes(), true) ? post_value('complainant_suffix') : ($complaint['complainant_name_suffix'] ?? '');
+$respondentSuffix = in_array(post_value('respondent_suffix'), barangay_allowed_suffixes(), true) ? post_value('respondent_suffix') : '';
+$complainantName = barangay_clean_name(post_value('complainant_name')) ?: trim($complaint['complainant_firstname'] . ' ' . $complaint['complainant_lastname']);
+$complainantName = trim($complainantName . ' ' . $complainantSuffix);
+$respondentName = trim(barangay_clean_name(post_value('respondent_name')) . ' ' . $respondentSuffix);
 $blotterNo = post_value('blotter_no') ?: ($complaint['tracking_number'] ?: 'CMP-' . $complaintId);
 $dateFiled = display_date(post_value('date_filed')) ?: date('F j, Y');
 $timeFiled = display_time(post_value('time_filed')) ?: date('g:i A');
-$barangay = post_value('barangay');
-$city = post_value('city');
-$province = post_value('province');
+$barangay = barangay_clean_location(post_value('barangay'));
+$city = barangay_clean_location(post_value('city'));
+$province = barangay_clean_location(post_value('province'));
 
 $complaintTypes = $_POST['complaint_types'] ?? [];
 if(!is_array($complaintTypes)){
@@ -165,16 +207,18 @@ $reportData = [
     'time_filed' => $timeFiled,
     'complainant_name' => $complainantName,
     'complainant_age' => post_value('complainant_age') ?: (string)($complaint['complainant_age'] ?? ''),
-    'complainant_gender' => post_value('complainant_gender') ?: ($complaint['complainant_gender'] ?? ''),
-    'complainant_civil_status' => post_value('complainant_civil_status') ?: ($complaint['complainant_civil_status'] ?? ''),
-    'complainant_address' => post_value('complainant_address') ?: ($complaint['complainant_address'] ?? ''),
-    'complainant_contact' => post_value('complainant_contact') ?: ($complaint['complainant_phone'] ?? ''),
+    'complainant_gender' => in_array(post_value('complainant_gender'), barangay_allowed_genders(), true) ? post_value('complainant_gender') : ($complaint['complainant_gender'] ?? ''),
+    'complainant_civil_status' => in_array(post_value('complainant_civil_status'), barangay_allowed_civil_statuses(), true) ? post_value('complainant_civil_status') : ($complaint['complainant_civil_status'] ?? ''),
+    'complainant_address' => barangay_clean_address(post_value('complainant_address') ?: ($complaint['complainant_address'] ?? '')),
+    'complainant_purok' => post_purok_value('complainant_purok', (string)($complaint['complainant_purok'] ?? '')),
+    'complainant_contact' => post_phone_value('complainant_contact') ?: barangay_clean_phone($complaint['complainant_phone'] ?? ''),
     'respondent_name' => $respondentName,
     'respondent_age' => post_value('respondent_age'),
-    'respondent_gender' => post_value('respondent_gender'),
-    'respondent_civil_status' => post_value('respondent_civil_status'),
-    'respondent_address' => post_value('respondent_address'),
-    'respondent_contact' => post_value('respondent_contact'),
+    'respondent_gender' => in_array(post_value('respondent_gender'), barangay_allowed_genders(), true) ? post_value('respondent_gender') : '',
+    'respondent_civil_status' => in_array(post_value('respondent_civil_status'), barangay_allowed_civil_statuses(), true) ? post_value('respondent_civil_status') : '',
+    'respondent_address' => barangay_clean_address(post_value('respondent_address')),
+    'respondent_purok' => post_purok_value('respondent_purok'),
+    'respondent_contact' => post_phone_value('respondent_contact'),
     'incident_date' => display_date(post_value('incident_date')),
     'incident_time' => display_time(post_value('incident_time')),
     'incident_place' => post_value('incident_place'),
@@ -184,8 +228,9 @@ $reportData = [
     'requested_actions' => $requestedActions,
     'other_action' => $otherAction,
     'witness_name' => post_value('witness_name'),
-    'witness_address' => post_value('witness_address'),
-    'witness_contact' => post_value('witness_contact'),
+    'witness_address' => barangay_clean_address(post_value('witness_address')),
+    'witness_purok' => post_purok_value('witness_purok'),
+    'witness_contact' => post_phone_value('witness_contact'),
     'witness_statement' => post_value('witness_statement'),
     'action_date' => display_date(post_value('action_date')),
     'action_remarks' => post_value('action_remarks'),
@@ -198,127 +243,93 @@ $reportData = [
     'approved_by' => post_value('approved_by') ?: 'Punong Barangay',
 ];
 
-$pdf = new SimplePdf();
-$citySeal = pdf_jpeg_path('uploads/system/tangub_off_seal.jpg');
-$provinceSeal = pdf_jpeg_path('uploads/system/mis_occ_official_seal.jpg');
+$requiredReportFields = [
+    'province' => 'Province',
+    'city' => 'City/Municipality',
+    'barangay' => 'Barangay',
+    'blotter_no' => 'Blotter number',
+    'date_filed' => 'Date filed',
+    'time_filed' => 'Time filed',
+    'complainant_name' => 'Complainant full name',
+    'complainant_age' => 'Complainant age',
+    'complainant_gender' => 'Complainant gender',
+    'complainant_civil_status' => 'Complainant civil status',
+    'complainant_address' => 'Complainant address',
+    'complainant_purok' => 'Complainant purok',
+    'complainant_contact' => 'Complainant contact number',
+    'respondent_name' => 'Person complained against full name',
+    'respondent_age' => 'Person complained against age',
+    'respondent_gender' => 'Person complained against gender',
+    'respondent_civil_status' => 'Person complained against civil status',
+    'respondent_address' => 'Person complained against address',
+    'respondent_purok' => 'Person complained against purok',
+    'respondent_contact' => 'Person complained against contact number',
+    'incident_date' => 'Date of incident',
+    'incident_time' => 'Time of incident',
+    'incident_place' => 'Place of incident',
+    'statement_details' => 'Statement of complaint',
+    'action_date' => 'Date of barangay action',
+    'recorded_by' => 'Recorded by',
+    'recorded_position' => 'Recorded by position',
+    'issued_day' => 'Issued day',
+    'issued_month' => 'Issued month',
+    'issued_year_suffix' => 'Issued year',
+    'prepared_by' => 'Prepared by',
+    'approved_by' => 'Approved by',
+];
 
-if($citySeal){
-    $pdf->image($citySeal, 118, 672, 72);
+$missingFields = [];
+foreach($requiredReportFields as $field => $label){
+    if(trim((string)($reportData[$field] ?? '')) === ''){
+        $missingFields[] = $label;
+    }
 }
 
-if($provinceSeal){
-    $pdf->image($provinceSeal, 434, 678, 58);
+if(intval($reportData['complainant_age']) < 18){
+    $missingFields[] = 'Complainant must be 18 years old or above';
 }
 
-$pdf->setY(710);
-$pdf->setFontSize(11);
-$pdf->center('Republic of the Philippines');
-$pdf->center('Province of ' . ($province ?: '____________________'));
-$pdf->center('City/Municipality of ' . ($city ?: '____________________'));
-$pdf->center('Barangay ' . ($barangay ?: '____________________'));
-$pdf->center('Office of the Punong Barangay');
-$pdf->blank(12);
-$pdf->setFontSize(12);
-$pdf->line('BARANGAY BLOTTER / COMPLAINT REPORT');
-$pdf->blank(12);
-$pdf->labelValue('Blotter No.', $blotterNo);
-$pdf->labelValue('Date Filed', $dateFiled);
-$pdf->labelValue('Time Filed', $timeFiled);
-$pdf->blank();
-
-$pdf->line('I. COMPLAINANT INFORMATION');
-$pdf->blank(8);
-$pdf->labelValue('Full Name', $complainantName);
-$pdf->labelValue('Age', post_value('complainant_age') ?: (string)($complaint['complainant_age'] ?? ''));
-$pdf->labelValue('Gender', post_value('complainant_gender') ?: ($complaint['complainant_gender'] ?? ''));
-$pdf->labelValue('Civil Status', post_value('complainant_civil_status') ?: ($complaint['complainant_civil_status'] ?? ''));
-$pdf->labelValue('Address', post_value('complainant_address') ?: ($complaint['complainant_address'] ?? ''));
-$pdf->labelValue('Contact Number', post_value('complainant_contact') ?: ($complaint['complainant_phone'] ?? ''));
-$pdf->blank();
-
-$pdf->line('II. PERSON COMPLAINED AGAINST');
-$pdf->blank(8);
-$pdf->labelValue('Full Name', $respondentName);
-$pdf->labelValue('Age', post_value('respondent_age'));
-$pdf->labelValue('Gender', post_value('respondent_gender'));
-$pdf->labelValue('Civil Status', post_value('respondent_civil_status'));
-$pdf->labelValue('Address', post_value('respondent_address'));
-$pdf->labelValue('Contact Number', post_value('respondent_contact'));
-$pdf->blank();
-
-$pdf->line('III. INCIDENT DETAILS');
-$pdf->blank(8);
-$pdf->labelValue('Date of Incident', display_date(post_value('incident_date')));
-$pdf->labelValue('Time of Incident', display_time(post_value('incident_time')));
-$pdf->labelValue('Place of Incident', post_value('incident_place'));
-$pdf->line('Type of Complaint:');
-$hasOtherComplaintType = in_array('Other', $complaintTypes, true) || $complaintTypeOther !== '';
-foreach(['Neighborhood Conflict', 'Minor Property Damage', 'Theft', 'Threat or Harassment', 'Physical/Verbal Dispute'] as $type){
-    $pdf->line((in_array($type, $complaintTypes, true) ? '[x] ' : '[ ] ') . $type);
+if(!barangay_is_ph_mobile($reportData['complainant_contact']) || !barangay_is_ph_mobile($reportData['respondent_contact'])){
+    $missingFields[] = 'Contact numbers must be valid 11-digit Philippine mobile numbers';
 }
-$pdf->line(($hasOtherComplaintType ? '[x] ' : '[ ] ') . 'Other: ' . $complaintTypeOther);
-$pdf->blank();
 
-$pdf->addPage();
-$pdf->line('IV. STATEMENT OF COMPLAINT');
-$pdf->blank(8);
-$pdf->paragraph('I, ' . ($complainantName ?: '____________________') . ', of legal age and a resident of ' . (post_value('complainant_address') ?: ($complaint['complainant_address'] ?? '____________________')) . ', respectfully file this complaint before the Barangay against ' . ($respondentName ?: '____________________') . '.');
-$pdf->blank(4);
-$pdf->paragraph('On ' . (display_date(post_value('incident_date')) ?: '____________________') . ', at around ' . (display_time(post_value('incident_time')) ?: '____________________') . ', the incident happened at ' . (post_value('incident_place') ?: '____________________') . '.');
-$pdf->blank(4);
-$pdf->line('The details of the complaint are as follows:');
-$pdf->paragraph(post_value('statement_details') ?: $complaint['description']);
-$pdf->blank(4);
-$pdf->paragraph('Because of this incident, I am requesting the assistance of the Barangay to properly record this matter in the barangay blotter and to take the necessary action according to barangay rules and procedures.');
-$pdf->blank();
+$validComplaintTypes = ['Neighborhood Conflict', 'Minor Property Damage', 'Theft', 'Threat or Harassment', 'Physical/Verbal Dispute', 'Other'];
+$complaintTypes = array_values(array_intersect($complaintTypes, $validComplaintTypes));
+$reportData['complaint_types'] = $complaintTypes;
 
-$pdf->line('V. REQUESTED ACTION');
-$pdf->blank(8);
-foreach([
+if(empty($complaintTypes)){
+    $missingFields[] = 'At least one complaint type';
+}
+
+if(in_array('Other', $complaintTypes, true) && trim($complaintTypeOther) === ''){
+    $missingFields[] = 'Other complaint type details';
+}
+
+$validRequestedActions = [
     'Record this incident in the barangay blotter',
     'Summon the respondent for mediation',
     'Assist both parties in settling the matter peacefully',
     'Issue a certification if needed',
-] as $action){
-    $pdf->line((in_array($action, $requestedActions, true) ? '[x] ' : '[ ] ') . $action);
+    'Other',
+];
+$requestedActions = array_values(array_intersect($requestedActions, $validRequestedActions));
+$reportData['requested_actions'] = $requestedActions;
+
+if(empty($requestedActions)){
+    $missingFields[] = 'At least one requested action';
 }
-$pdf->line((in_array('Other', $requestedActions, true) ? '[x] ' : '[ ] ') . 'Take other proper action: ' . $otherAction);
-$pdf->blank();
 
-$pdf->line('VI. WITNESS INFORMATION');
-$pdf->blank(8);
-$pdf->labelValue('Name of Witness', post_value('witness_name'));
-$pdf->labelValue('Address', post_value('witness_address'));
-$pdf->labelValue('Contact Number', post_value('witness_contact'));
-$pdf->line('Statement of Witness:');
-$pdf->paragraph(post_value('witness_statement'));
-$pdf->blank();
+if(in_array('Other', $requestedActions, true) && trim($otherAction) === ''){
+    $missingFields[] = 'Other requested action details';
+}
 
-$pdf->line('VII. ACTION TAKEN BY THE BARANGAY');
-$pdf->blank(8);
-$pdf->labelValue('Date of Action', display_date(post_value('action_date')));
-$pdf->labelValue('Remarks', post_value('action_remarks'));
-$pdf->blank();
+if(!empty($missingFields)){
+    $_SESSION['staff_blotter_error'] = 'Please complete or correct: ' . implode(', ', array_unique($missingFields)) . '.';
+    header("Location: view_complaints.php?" . http_build_query($redirectParams));
+    exit();
+}
 
-$pdf->addPage();
-$pdf->line('VIII. SIGNATURES');
-$pdf->blank(8);
-$staffSignaturePdfPath = pdf_jpeg_path(!empty($staffSignature) ? 'uploads/signatures/' . $staffSignature : null);
-pdf_signature_block($pdf, 'Complainant', $complainantName);
-pdf_signature_block($pdf, 'Received and Recorded By', post_value('recorded_by') ?: $staffName, $dateFiled, $staffSignaturePdfPath);
-$pdf->labelValue('Position', post_value('recorded_position') ?: 'Barangay Secretary / Desk Officer');
-pdf_signature_block($pdf, 'Approved By', post_value('approved_by') ?: 'Punong Barangay');
-$pdf->blank();
-
-$pdf->line('CERTIFICATION');
-$pdf->paragraph('This is to certify that the above complaint was officially recorded in the Barangay Blotter of Barangay ' . ($barangay ?: '____________________') . ' on ' . ($dateFiled ?: '____________________') . ' at ' . ($timeFiled ?: '____________________') . '.');
-$pdf->paragraph('Issued this ' . post_value('issued_day') . ' day of ' . post_value('issued_month') . ', 20' . post_value('issued_year_suffix') . ' at Barangay ' . ($barangay ?: '____________________') . ', City/Municipality of ' . ($city ?: '____________________') . '.');
-$pdf->blank(14);
-$pdf->line('Prepared by:');
-$pdf->line(post_value('prepared_by') ?: 'Barangay Secretary / Desk Officer');
-$pdf->blank(18);
-$pdf->line('Approved by:');
-$pdf->line(post_value('approved_by') ?: 'Punong Barangay');
+$staffSignaturePdfPath = pdf_jpeg_path(!empty($staffSignature) ? 'uploads/signatures/' . $staffSignature : null, true);
 
 $uploadsRoot = realpath(__DIR__ . '/../uploads');
 $proofFolder = $uploadsRoot === false ? false : $uploadsRoot . DIRECTORY_SEPARATOR . 'complaint_proofs';
@@ -331,7 +342,7 @@ if($uploadsRoot === false || (!is_dir($proofFolder) && !mkdir($proofFolder, 0777
 $storedFileName = 'blotter_' . $complaintId . '_' . $userId . '_' . time() . '.pdf';
 $destinationPath = $proofFolder . DIRECTORY_SEPARATOR . $storedFileName;
 
-if(!$pdf->output($destinationPath)){
+if(!render_blotter_pdf($reportData, ['staff' => $staffSignaturePdfPath], $destinationPath)){
     header("Location: view_complaints.php?" . http_build_query($redirectParams));
     exit();
 }
@@ -411,6 +422,14 @@ sendComplaintTimelineUpdate(
     "A barangay blotter / complaint report has been generated for your complaint. Please open your complaint timeline and upload your scanned e-signature so the assigned staff can submit it to admin for approval.",
     $staffName,
     rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/complainant/my_complaints.php'
+);
+
+notify_user(
+    $conn,
+    intval($complaint['complainant_id']),
+    'Blotter Signature Needed',
+    'A barangay blotter report was generated. Please attach your cleaned JPG or PNG e-signature so the staff can submit it for admin approval.',
+    '../complainant/my_complaints.php?status=In+Progress#complaint-' . $complaintId
 );
 
 header("Location: view_complaints.php?" . http_build_query($redirectParams));

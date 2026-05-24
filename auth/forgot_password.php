@@ -3,6 +3,7 @@ include('../config/database.php');
 include('../includes/send_reset.php');
 
 $message = '';
+$message_type = '';
 
 if(isset($_POST['send'])){
 
@@ -14,15 +15,25 @@ if(isset($_POST['send'])){
 
     //  CHECK USER
     $user = db_select_one($conn,
-    "SELECT user_id, firstname, lastname, email
+    "SELECT users.user_id,
+            users.firstname,
+            users.lastname,
+            users.email,
+            COALESCE(user_auth.email_verified, 0) AS email_verified
      FROM users
+     LEFT JOIN user_auth ON users.user_id = user_auth.user_id
      WHERE BINARY email=?
      LIMIT 1",
      's',
      [$email_input]);
 
-    if($user){
-
+    if(!$user){
+        $message = "That email does not exist in the system. Please register first.";
+        $message_type = 'error';
+    } elseif(intval($user['email_verified']) !== 1){
+        $message = "Please verify your registered email first before requesting a password reset.";
+        $message_type = 'error';
+    } else {
         $user_id = intval($user['user_id']);
         $fullname = trim($user['firstname'] . ' ' . $user['lastname']);
 
@@ -45,9 +56,10 @@ if(isset($_POST['send'])){
 
         //  SEND EMAIL
         sendResetLink($user['email'], $fullname, $token);
-    }
 
-    $message = "If an account with that email exists, a password reset link has been sent.";
+        $message = "A password reset link has been sent to your registered email.";
+        $message_type = 'success';
+    }
 }
 ?>
 
@@ -63,10 +75,12 @@ if(isset($_POST['send'])){
 <div class="container">
     <h2>Forgot Password</h2>
 
-    <p>Enter the email address registered to your account. If it exists in the system, a reset link will be sent there.</p>
+    <p>Enter the email address registered to your account. Your email must be verified before you can reset your password.</p>
 
     <?php if($message != ''): ?>
-    <p><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></p>
+    <p style="color: <?php echo $message_type === 'success' ? '#166534' : '#b91c1c'; ?>; font-weight: 700;">
+        <?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?>
+    </p>
     <?php endif; ?>
 
     <form method="POST">

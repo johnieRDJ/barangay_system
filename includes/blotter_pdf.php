@@ -1,8 +1,10 @@
 <?php
 
 require_once __DIR__ . '/simple_pdf.php';
+require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/pdf_header_image.php';
 
-function blotter_pdf_jpeg_path(?string $relativePath): ?string
+function blotter_pdf_jpeg_path(?string $relativePath, bool $cleanSignature = false): ?string
 {
     if(!$relativePath){
         return null;
@@ -11,129 +13,160 @@ function blotter_pdf_jpeg_path(?string $relativePath): ?string
     $path = realpath(__DIR__ . '/../' . ltrim($relativePath, '/\\'));
     $extension = $path ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
 
-    return $path && in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
+    if(!$path || !in_array($extension, ['jpg', 'jpeg', 'png'], true)){
+        return null;
+    }
+
+    if($cleanSignature){
+        $cleanPath = dirname($path) . DIRECTORY_SEPARATOR . pathinfo($path, PATHINFO_FILENAME) . '_pdf_clean.jpg';
+
+        if(!is_file($cleanPath) || filemtime($cleanPath) < filemtime($path)){
+            barangay_clean_signature_image_file($path, $cleanPath);
+        }
+
+        if(is_file($cleanPath)){
+            return $cleanPath;
+        }
+    }
+
+    return in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
 }
 
 function blotter_pdf_signature_block(SimplePdf $pdf, string $label, string $name, string $date = '', ?string $signaturePath = null): void
 {
+    $pdf->keepTogether(92);
     $pdf->line($label . ':');
-    $lineY = $pdf->getY() + 2;
+    $signatureY = $pdf->getY();
+
+    $pdf->text('Signature:', 72, $signatureY);
+    $pdf->horizontalLine(170, $signatureY - 3, 445);
 
     if($signaturePath){
-        $pdf->image($signaturePath, 300, max(72, $lineY), 46, 18);
+        $pdf->image($signaturePath, 285, max(72, $signatureY - 0), 104, 36);
     }
 
-    $pdf->labelValue('Signature', '');
+    $pdf->setY($signatureY - 16);
     $pdf->labelValue('Name', $name);
     $pdf->labelValue('Date', $date);
-    $pdf->blank(8);
+    $pdf->blank(10);
+}
+
+function blotter_pdf_selected_text(array $selected, string $otherValue = '', string $otherLabel = 'Other'): string
+{
+    $items = array_values(array_filter($selected, fn($item) => trim((string)$item) !== '' && $item !== 'Other'));
+
+    if(trim($otherValue) !== ''){
+        $items[] = $otherLabel . ': ' . trim($otherValue);
+    } elseif(in_array('Other', $selected, true)){
+        $items[] = $otherLabel;
+    }
+
+    return !empty($items) ? implode('; ', $items) : 'None selected';
 }
 
 function render_blotter_pdf(array $data, array $signatures, string $destinationPath): bool
 {
     $pdf = new SimplePdf();
-    $citySeal = blotter_pdf_jpeg_path('uploads/system/tangub_off_seal.jpg');
-    $provinceSeal = blotter_pdf_jpeg_path('uploads/system/mis_occ_official_seal.jpg');
+    $headerImage = pdf_header_image_path($data['province'] ?? '', $data['city'] ?? '', $data['barangay'] ?? '');
 
-    if($citySeal){
-        $pdf->image($citySeal, 118, 672, 72);
+    if($headerImage){
+        $pdf->image($headerImage, 71, 646, 470, 92);
+    } else {
+        $citySeal = blotter_pdf_jpeg_path('uploads/system/tangub_off_seal.jpg');
+        $provinceSeal = blotter_pdf_jpeg_path('uploads/system/mis_occ_official_seal.jpg');
+
+        if($citySeal){
+            $pdf->image($citySeal, 150, 674, 62, 62);
+        }
+
+        if($provinceSeal){
+            $pdf->image($provinceSeal, 400, 674, 62, 62);
+        }
+
+        $pdf->setY(710);
+        $pdf->setFontSize(11);
+        $pdf->center('Republic of the Philippines');
+        $pdf->center('Province of ' . (($data['province'] ?? '') ?: '____________________'));
+        $pdf->center('City/Municipality of ' . (($data['city'] ?? '') ?: '____________________'));
+        $pdf->center('Barangay ' . (($data['barangay'] ?? '') ?: '____________________'));
+        $pdf->center('Office of the Punong Barangay');
     }
 
-    if($provinceSeal){
-        $pdf->image($provinceSeal, 434, 678, 58);
-    }
-
-    $pdf->setY(710);
-    $pdf->setFontSize(11);
-    $pdf->center('Republic of the Philippines');
-    $pdf->center('Province of ' . (($data['province'] ?? '') ?: '____________________'));
-    $pdf->center('City/Municipality of ' . (($data['city'] ?? '') ?: '____________________'));
-    $pdf->center('Barangay ' . (($data['barangay'] ?? '') ?: '____________________'));
-    $pdf->center('Office of the Punong Barangay');
-    $pdf->blank(12);
+    $pdf->setY(608);
     $pdf->setFontSize(12);
     $pdf->line('BARANGAY BLOTTER / COMPLAINT REPORT');
-    $pdf->blank(12);
+    $pdf->blank(10);
     $pdf->labelValue('Blotter No.', $data['blotter_no'] ?? '');
     $pdf->labelValue('Date Filed', $data['date_filed'] ?? '');
     $pdf->labelValue('Time Filed', $data['time_filed'] ?? '');
-    $pdf->blank();
+    $pdf->blank(14);
 
     $pdf->line('I. COMPLAINANT INFORMATION');
-    $pdf->blank(8);
+    $pdf->blank(6);
     $pdf->labelValue('Full Name', $data['complainant_name'] ?? '');
     $pdf->labelValue('Age', $data['complainant_age'] ?? '');
     $pdf->labelValue('Gender', $data['complainant_gender'] ?? '');
     $pdf->labelValue('Civil Status', $data['complainant_civil_status'] ?? '');
     $pdf->labelValue('Address', $data['complainant_address'] ?? '');
+    $pdf->labelValue('Purok', !empty($data['complainant_purok']) ? 'Purok ' . $data['complainant_purok'] : '');
     $pdf->labelValue('Contact Number', $data['complainant_contact'] ?? '');
-    $pdf->blank();
+    $pdf->blank(12);
 
     $pdf->line('II. PERSON COMPLAINED AGAINST');
-    $pdf->blank(8);
+    $pdf->blank(6);
     $pdf->labelValue('Full Name', $data['respondent_name'] ?? '');
     $pdf->labelValue('Age', $data['respondent_age'] ?? '');
     $pdf->labelValue('Gender', $data['respondent_gender'] ?? '');
     $pdf->labelValue('Civil Status', $data['respondent_civil_status'] ?? '');
     $pdf->labelValue('Address', $data['respondent_address'] ?? '');
+    $pdf->labelValue('Purok', !empty($data['respondent_purok']) ? 'Purok ' . $data['respondent_purok'] : '');
     $pdf->labelValue('Contact Number', $data['respondent_contact'] ?? '');
-    $pdf->blank();
+    $pdf->blank(12);
 
     $complaintTypes = $data['complaint_types'] ?? [];
     $pdf->line('III. INCIDENT DETAILS');
-    $pdf->blank(8);
+    $pdf->blank(6);
     $pdf->labelValue('Date of Incident', $data['incident_date'] ?? '');
     $pdf->labelValue('Time of Incident', $data['incident_time'] ?? '');
     $pdf->labelValue('Place of Incident', $data['incident_place'] ?? '');
-    $pdf->line('Type of Complaint:');
-    $hasOtherComplaintType = in_array('Other', $complaintTypes, true) || trim((string)($data['complaint_type_other'] ?? '')) !== '';
-    foreach(['Neighborhood Conflict', 'Minor Property Damage', 'Theft', 'Threat or Harassment', 'Physical/Verbal Dispute'] as $type){
-        $pdf->line((in_array($type, $complaintTypes, true) ? '[x] ' : '[ ] ') . $type);
-    }
-    $pdf->line(($hasOtherComplaintType ? '[x] ' : '[ ] ') . 'Other: ' . ($data['complaint_type_other'] ?? ''));
+    $pdf->paragraph('Type of Complaint: ' . blotter_pdf_selected_text($complaintTypes, $data['complaint_type_other'] ?? ''));
     $pdf->blank();
 
     $pdf->addPage();
     $pdf->line('IV. STATEMENT OF COMPLAINT');
     $pdf->blank(8);
-    $pdf->paragraph('I, ' . (($data['complainant_name'] ?? '') ?: '____________________') . ', of legal age and a resident of ' . (($data['complainant_address'] ?? '') ?: '____________________') . ', respectfully file this complaint before the Barangay against ' . (($data['respondent_name'] ?? '') ?: '____________________') . '.');
+    $residentAddress = trim((!empty($data['complainant_purok']) ? 'Purok ' . $data['complainant_purok'] . ', ' : '') . (($data['complainant_address'] ?? '') ?: ''));
+    $pdf->paragraph('I, ' . (($data['complainant_name'] ?? '') ?: '____________________') . ', of legal age and a resident of ' . ($residentAddress ?: '____________________') . ', respectfully file this complaint before the Barangay against ' . (($data['respondent_name'] ?? '') ?: '____________________') . '.', true);
     $pdf->blank(4);
-    $pdf->paragraph('On ' . (($data['incident_date'] ?? '') ?: '____________________') . ', at around ' . (($data['incident_time'] ?? '') ?: '____________________') . ', the incident happened at ' . (($data['incident_place'] ?? '') ?: '____________________') . '.');
+    $pdf->paragraph('On ' . (($data['incident_date'] ?? '') ?: '____________________') . ', at around ' . (($data['incident_time'] ?? '') ?: '____________________') . ', the incident happened at ' . (($data['incident_place'] ?? '') ?: '____________________') . '.', true);
     $pdf->blank(4);
     $pdf->line('The details of the complaint are as follows:');
-    $pdf->paragraph($data['statement_details'] ?? '');
+    $pdf->paragraph($data['statement_details'] ?? '', true);
     $pdf->blank(4);
-    $pdf->paragraph('Because of this incident, I am requesting the assistance of the Barangay to properly record this matter in the barangay blotter and to take the necessary action according to barangay rules and procedures.');
-    $pdf->blank();
+    $pdf->paragraph('Because of this incident, I am requesting the assistance of the Barangay to properly record this matter in the barangay blotter and to take the necessary action according to barangay rules and procedures.', true);
+    $pdf->blank(18);
 
     $requestedActions = $data['requested_actions'] ?? [];
     $pdf->line('V. REQUESTED ACTION');
     $pdf->blank(8);
-    foreach([
-        'Record this incident in the barangay blotter',
-        'Summon the respondent for mediation',
-        'Assist both parties in settling the matter peacefully',
-        'Issue a certification if needed',
-    ] as $action){
-        $pdf->line((in_array($action, $requestedActions, true) ? '[x] ' : '[ ] ') . $action);
-    }
-    $pdf->line((in_array('Other', $requestedActions, true) ? '[x] ' : '[ ] ') . 'Take other proper action: ' . ($data['other_action'] ?? ''));
-    $pdf->blank();
+    $pdf->paragraph('Selected: ' . blotter_pdf_selected_text($requestedActions, $data['other_action'] ?? '', 'Take other proper action'));
+    $pdf->blank(18);
 
     $pdf->line('VI. WITNESS INFORMATION');
     $pdf->blank(8);
     $pdf->labelValue('Name of Witness', $data['witness_name'] ?? '');
     $pdf->labelValue('Address', $data['witness_address'] ?? '');
+    $pdf->labelValue('Purok', !empty($data['witness_purok']) ? 'Purok ' . $data['witness_purok'] : '');
     $pdf->labelValue('Contact Number', $data['witness_contact'] ?? '');
     $pdf->line('Statement of Witness:');
     $pdf->paragraph($data['witness_statement'] ?? '');
-    $pdf->blank();
+    $pdf->blank(18);
 
     $pdf->line('VII. ACTION TAKEN BY THE BARANGAY');
     $pdf->blank(8);
     $pdf->labelValue('Date of Action', $data['action_date'] ?? '');
     $pdf->labelValue('Remarks', $data['action_remarks'] ?? '');
-    $pdf->blank();
+    $pdf->blank(18);
 
     $pdf->addPage();
     $pdf->line('VIII. SIGNATURES');
@@ -141,6 +174,7 @@ function render_blotter_pdf(array $data, array $signatures, string $destinationP
     blotter_pdf_signature_block($pdf, 'Complainant', $data['complainant_name'] ?? '', $signatures['complainant_date'] ?? '', $signatures['complainant'] ?? null);
     blotter_pdf_signature_block($pdf, 'Received and Recorded By', $data['recorded_by'] ?? '', $data['date_filed'] ?? '', $signatures['staff'] ?? null);
     $pdf->labelValue('Position', $data['recorded_position'] ?? 'Barangay Secretary / Desk Officer');
+    $pdf->blank(10);
     blotter_pdf_signature_block($pdf, 'Approved By', $data['approved_by'] ?? 'Punong Barangay', $signatures['admin_date'] ?? '', $signatures['admin'] ?? null);
     $pdf->blank();
 
@@ -174,9 +208,9 @@ function regenerate_blotter_report_pdf(mysqli $conn, int $reportId, array $extra
     }
 
     $signatures = [
-        'staff' => blotter_pdf_jpeg_path(!empty($report['staff_signature_image']) ? 'uploads/signatures/' . $report['staff_signature_image'] : null),
-        'complainant' => blotter_pdf_jpeg_path(!empty($report['complainant_signature_image']) ? 'uploads/blotter_signatures/' . $report['complainant_signature_image'] : null),
-        'admin' => blotter_pdf_jpeg_path(!empty($report['admin_signature_image']) ? 'uploads/signatures/' . $report['admin_signature_image'] : null),
+        'staff' => blotter_pdf_jpeg_path(!empty($report['staff_signature_image']) ? 'uploads/signatures/' . $report['staff_signature_image'] : null, true),
+        'complainant' => blotter_pdf_jpeg_path(!empty($report['complainant_signature_image']) ? 'uploads/blotter_signatures/' . $report['complainant_signature_image'] : null, true),
+        'admin' => blotter_pdf_jpeg_path(!empty($report['admin_signature_image']) ? 'uploads/signatures/' . $report['admin_signature_image'] : null, true),
         'complainant_date' => !empty($report['complainant_signature_image']) ? date('F j, Y') : '',
         'admin_date' => !empty($report['admin_signature_image']) ? date('F j, Y') : '',
     ];

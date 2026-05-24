@@ -8,6 +8,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
 
 include('../config/database.php');
 include('../includes/pagination.php');
+require_once __DIR__ . '/../includes/notifications.php';
 
 // ============================
 // DELETE USER
@@ -16,12 +17,43 @@ if(isset($_GET['delete'])){
     $id = intval($_GET['delete']);
 
     $target = db_select_one($conn,
-    "SELECT role FROM users WHERE user_id=? LIMIT 1",
+    "SELECT user_id, role, firstname, lastname FROM users WHERE user_id=? LIMIT 1",
     'i',
     [$id]);
 
     if($target && $target['role'] == 'superadmin'){
         echo "<script>alert('Superadmin account is protected.'); window.location='manage_users.php';</script>";
+        exit();
+    }
+
+    if($target && $target['role'] == 'admin'){
+        db_execute($conn,
+        "INSERT INTO admin_action_requests (requested_by, target_user_id, action_type, payload)
+         VALUES (?, ?, 'delete', NULL)",
+         'ii',
+         [intval($_SESSION['user_id']), $id]);
+
+        $adminName = trim(($target['firstname'] ?? '') . ' ' . ($target['lastname'] ?? ''));
+        $superadmins = db_select_all($conn,
+        "SELECT user_id FROM users WHERE role='superadmin'");
+        foreach($superadmins as $superadmin){
+            notify_user(
+                $conn,
+                intval($superadmin['user_id']),
+                'Admin Delete Request',
+                'An admin requested to delete admin account ' . $adminName . '.',
+                '../superadmin/admin_requests.php'
+            );
+        }
+
+        db_execute($conn,
+        "INSERT INTO logs (user_id, action)
+         VALUES (?, ?)",
+         'is',
+         [intval($_SESSION['user_id']), "Requested delete approval for admin ID $id"]);
+
+        $_SESSION['status_message'] = 'Delete request sent to superadmin for approval.';
+        header("Location: manage_users.php");
         exit();
     }
 
@@ -113,9 +145,10 @@ $pagination = pagination_state($conn,
  $params);
 
 $users = db_select_all($conn,
-"SELECT users.*, residency.status AS residency_status
+"SELECT users.*, residency.status AS residency_status, user_profiles.valid_id_image
  FROM users
  LEFT JOIN residency ON users.user_id = residency.user_id
+ LEFT JOIN user_profiles ON users.user_id = user_profiles.user_id
  WHERE $where_sql
  ORDER BY users.role, users.lastname, users.firstname" . $pagination['limit_sql'],
  $types,
@@ -206,6 +239,7 @@ window.addEventListener('DOMContentLoaded', function () {
     <th>Name</th>
     <th>Email</th>
     <th>Role</th>
+    <th>Valid ID</th>
     <th>Residency</th>
     <th>Status</th>
     <th>Action</th>
@@ -220,7 +254,13 @@ window.addEventListener('DOMContentLoaded', function () {
 
 <td><?php echo htmlspecialchars($row['role']); ?></td>
 
-
+<td>
+<?php if(!empty($row['valid_id_image'])): ?>
+    <a class="page-action secondary-action" href="view_valid_id.php?id=<?php echo intval($row['user_id']); ?>" target="_blank" rel="noopener">View ID</a>
+<?php else: ?>
+    <span class="table-muted">No ID</span>
+<?php endif; ?>
+</td>
 
 <td><?php $residency = $row['residency_status'] ?? 'none';
 
@@ -255,13 +295,13 @@ else{
     <?php if($row['role'] == 'superadmin'): ?>
         <span style="color:#8b5e00; font-weight:bold;">Protected</span>
     <?php else: ?>
-        <a href="edit_user.php?id=<?php echo $row['user_id']; ?>">Edit</a>
-        <a href="manage_users.php?delete=<?php echo $row['user_id']; ?>"
-        onclick="return confirm('Delete this user?')">Delete</a>
+        <a class="action-edit" href="edit_user.php?id=<?php echo $row['user_id']; ?>">Edit</a>
+        <a class="action-delete" href="manage_users.php?delete=<?php echo $row['user_id']; ?>"
+        data-confirm-message="Delete this user? This action cannot be undone.">Delete</a>
 
         <?php if($row['account_status'] == 'pending'): ?>
-            <a href="approve_user.php?id=<?php echo $row['user_id']; ?>">Approve</a>
-            <a href="reject_user.php?id=<?php echo $row['user_id']; ?>">Reject</a>
+            <a class="action-approve" href="approve_user.php?id=<?php echo $row['user_id']; ?>">Approve</a>
+            <a class="action-reject" href="reject_user.php?id=<?php echo $row['user_id']; ?>">Reject</a>
         <?php elseif($row['account_status'] == 'approved' && $residency != 'verified'): ?>
             <a href="schedule_appointment.php?id=<?php echo $row['user_id']; ?>">Schedule</a>
             <a href="verify_residency.php?id=<?php echo $row['user_id']; ?>">Verify Residency</a>

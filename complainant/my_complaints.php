@@ -11,6 +11,8 @@ include('../includes/pagination.php');
 include('../includes/complaint_updates.php');
 include('../includes/send_complaint_update.php');
 include('../includes/blotter_pdf.php');
+require_once __DIR__ . '/../includes/notifications.php';
+include('../includes/validation.php');
 
 $user_id = intval($_SESSION['user_id']);
 $action_error = '';
@@ -108,8 +110,8 @@ if(isset($_POST['blotter_sign'])){
 
         if(!in_array($extension, ['jpg', 'jpeg', 'png'], true)){
             $action_error = 'Only JPG and PNG signatures are allowed.';
-        } elseif(intval($_FILES['complainant_signature']['size']) > 5 * 1024 * 1024){
-            $action_error = 'Signature image must be 5MB or smaller.';
+        } elseif(intval($_FILES['complainant_signature']['size']) > barangay_max_image_upload_bytes()){
+            $action_error = 'Signature image must be ' . barangay_max_upload_label() . ' or smaller.';
         } elseif(($_FILES['complainant_signature']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK){
             $action_error = 'The signature could not be uploaded. Please try again.';
         } else {
@@ -119,11 +121,9 @@ if(isset($_POST['blotter_sign'])){
             if($signatureFolder === false || (!is_dir($signatureFolder) && !mkdir($signatureFolder, 0777, true))){
                 $action_error = 'Could not create the signature upload folder.';
             } else {
-                $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($_FILES['complainant_signature']['name']));
-                $storedSignature = time() . '_' . $complaintId . '_' . $user_id . '_' . $safeName;
-                $destinationPath = $signatureFolder . DIRECTORY_SEPARATOR . $storedSignature;
+                $storedSignature = barangay_process_signature_upload($_FILES['complainant_signature'], $signatureFolder, $user_id);
 
-                if(move_uploaded_file($_FILES['complainant_signature']['tmp_name'], $destinationPath)){
+                if($storedSignature){
                     db_execute($conn,
                     "UPDATE blotter_reports
                      SET status='signed_by_complainant',
@@ -167,6 +167,14 @@ if(isset($_POST['blotter_sign'])){
                             'Complainant',
                             rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/staff/view_complaints.php'
                         );
+
+                        notify_user(
+                            $conn,
+                            intval($report['staff_user_id'] ?? 0),
+                            'Complainant Signed Blotter',
+                            'The complainant uploaded their e-signature. Please review the blotter report and submit it to admin.',
+                            '../staff/view_complaints.php?status=In+Progress'
+                        );
                     }
 
                     header("Location: my_complaints.php?" . http_build_query(array_merge($redirectBase, ['blotter_signed' => 1])));
@@ -202,6 +210,7 @@ if(isset($_POST['complaint_action'])){
             complaints.subject,
             complaints.status,
             complaints.resolution_confirmation,
+            complaints.assigned_staff_id,
             staff.email AS staff_email,
             staff.firstname AS staff_firstname,
             staff.lastname AS staff_lastname
@@ -254,6 +263,14 @@ if(isset($_POST['complaint_action'])){
                 'Complainant',
                 rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/staff/view_complaints.php'
             );
+
+            notify_user(
+                $conn,
+                intval($complaint['assigned_staff_id'] ?? 0),
+                'Resolution Confirmed',
+                'The complainant confirmed that the complaint has been resolved.',
+                '../staff/view_complaints.php?status=Resolved'
+            );
         }
 
         header("Location: my_complaints.php?" . http_build_query(array_merge($redirectBase, ['confirmation' => 'confirmed'])));
@@ -298,6 +315,14 @@ if(isset($_POST['complaint_action'])){
                     "The complainant marked the complaint as not yet resolved.\n\nReason: $reopenNote",
                     'Complainant',
                     rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/staff/view_complaints.php'
+                );
+
+                notify_user(
+                    $conn,
+                    intval($complaint['assigned_staff_id'] ?? 0),
+                    'Complaint Reopened',
+                    'The complainant marked the complaint as not yet resolved. Reason: ' . $reopenNote,
+                    '../staff/view_complaints.php?status=Reopened'
                 );
             }
 
@@ -511,7 +536,7 @@ if(!empty($complaintIds)){
             $latestBlotterReport = $blotterReportsByComplaint[$complaintId] ?? null;
             ?>
 
-            <div class="table-card complaint-card">
+            <div class="table-card complaint-card" id="complaint-<?php echo $complaintId; ?>">
                 <div class="complaint-card-header">
                     <div>
                         <h2 style="text-align:left; margin-bottom:6px;"><?php echo htmlspecialchars($row['subject']); ?></h2>
@@ -558,7 +583,7 @@ if(!empty($complaintIds)){
                             <?php if($row['status'] === 'Pending'): ?>
                                 <a href="print_ticket.php?id=<?php echo $complaintId; ?>" class="page-action">Print Complaint</a>
                                 <a href="edit_complaint.php?id=<?php echo $complaintId; ?>" class="page-action secondary-action">Edit Complaint</a>
-                                <a href="delete_complaints.php?id=<?php echo $complaintId; ?>&page=<?php echo intval($pagination['page']); ?>&per_page=<?php echo intval($pagination['per_page']); ?>&status=<?php echo urlencode($statusFilter); ?>" class="page-action secondary-action" onclick="return confirm('Cancel this complaint? It will stay in your history.');">Cancel Complaint</a>
+                                <a href="delete_complaints.php?id=<?php echo $complaintId; ?>&page=<?php echo intval($pagination['page']); ?>&per_page=<?php echo intval($pagination['per_page']); ?>&status=<?php echo urlencode($statusFilter); ?>" class="page-action secondary-action" data-confirm-message="Cancel this complaint? It will stay in your history.">Cancel Complaint</a>
                             <?php elseif($row['status'] === 'Resolved' && $row['resolution_confirmation'] === 'pending'): ?>
                                 <a href="print_ticket.php?id=<?php echo $complaintId; ?>" class="page-action">Print Complaint</a>
                                 <form method="POST" class="complaint-confirmation-form">
@@ -587,7 +612,8 @@ if(!empty($complaintIds)){
                                     <a class="page-action secondary-action" href="../view_blotter_report.php?report_id=<?php echo intval($latestBlotterReport['report_id']); ?>">Open Blotter PDF</a>
                                     <?php if($latestBlotterReport['status'] === 'awaiting_complainant_signature'): ?>
                                         <p class="table-muted">Your e-signature is needed before staff can submit this report to admin.</p>
-                                        <form method="POST" enctype="multipart/form-data" class="complaint-confirmation-form">
+                                        <form method="POST" action="my_complaints.php" enctype="multipart/form-data" class="complaint-confirmation-form">
+                                            <input type="hidden" name="MAX_FILE_SIZE" value="<?php echo barangay_max_image_upload_bytes(); ?>">
                                             <input type="hidden" name="report_id" value="<?php echo intval($latestBlotterReport['report_id']); ?>">
                                             <input type="hidden" name="complaint_id" value="<?php echo $complaintId; ?>">
                                             <input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">

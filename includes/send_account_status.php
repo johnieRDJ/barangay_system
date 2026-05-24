@@ -20,7 +20,11 @@ $mail->Body = "
 
 <p>Your account has been <b>approved</b> by the Barangay Administrator.</p>
 
-<p>You can now login to the system and submit complaints.</p>
+<p>You can now login to the system.</p>
+
+<p>Please complete your <b>My Profile</b> information after logging in, including your address, phone number, age, civil status, valid ID, and profile picture. This helps the Barangay review and process your requests properly.</p>
+
+<p><a href='" . rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . "/auth/login.php'>Login to your account</a></p>
 
 <p>Thank you.</p>
 ";

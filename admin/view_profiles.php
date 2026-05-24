@@ -66,12 +66,15 @@ $profiles = db_select_all(
     $conn,
     "SELECT users.*,
             user_profiles.address,
+            user_profiles.purok,
             user_profiles.phone,
             user_profiles.age,
             user_profiles.gender,
             user_profiles.civil_status,
+            user_profiles.name_suffix,
             user_profiles.about,
             user_profiles.profile_image,
+            user_profiles.valid_id_image,
             residency.status AS residency_status
      FROM users
      LEFT JOIN user_profiles ON users.user_id = user_profiles.user_id
@@ -123,12 +126,12 @@ $profiles = db_select_all(
 <div class="profile-panel profile-summary-card">
 
     <?php if($row['profile_image']): ?>
-        <img src="../uploads/profile/<?php echo htmlspecialchars($row['profile_image']); ?>" width="100%">
+        <img src="../uploads/profile/<?php echo htmlspecialchars(basename($row['profile_image'])); ?>" width="100%">
     <?php else: ?>
         <p>No Image</p>
     <?php endif; ?>
 
-    <h3><?php echo htmlspecialchars($row['firstname']." ".$row['lastname']); ?></h3>
+    <h3><?php echo htmlspecialchars(trim($row['firstname']." ".$row['lastname'] . ' ' . ($row['name_suffix'] ?? ''))); ?></h3>
 
     <p><strong>Email:</strong> <span class="profile-email"><?php echo htmlspecialchars($row['email']); ?></span></p>
 
@@ -164,6 +167,15 @@ $profiles = db_select_all(
     <p><strong>Civil Status:</strong> <?php echo htmlspecialchars($row['civil_status'] ?: 'N/A'); ?></p>
 
     <p><strong>Address:</strong> <?php echo htmlspecialchars($row['address'] ?: 'N/A'); ?></p>
+    <p><strong>Purok:</strong> <?php echo !empty($row['purok']) ? 'Purok ' . htmlspecialchars($row['purok']) : 'N/A'; ?></p>
+
+    <p><strong>Valid ID:</strong>
+        <?php if(!empty($row['valid_id_image'])): ?>
+            <a href="view_valid_id.php?id=<?php echo intval($row['user_id']); ?>" target="_blank" rel="noopener">View submitted ID</a>
+        <?php else: ?>
+            N/A
+        <?php endif; ?>
+    </p>
 
     <p><strong>About:</strong><br>
     <?php echo nl2br(htmlspecialchars($row['about'] ?: 'No description')); ?>

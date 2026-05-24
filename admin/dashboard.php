@@ -75,7 +75,7 @@ $pending_complaints = mysqli_fetch_assoc(mysqli_query($conn,
 "SELECT COUNT(*) as total FROM complaints WHERE status='pending'"))['total'];
 
 $resolved_complaints = mysqli_fetch_assoc(mysqli_query($conn,
-"SELECT COUNT(*) as total FROM complaints WHERE status='resolved'"))['total'];
+"SELECT COUNT(*) as total FROM complaints WHERE status='Resolved'"))['total'];
 ?>
 
 <div class="dashboard-wrapper page-shell">

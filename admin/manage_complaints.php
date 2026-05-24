@@ -8,6 +8,7 @@ include('../includes/blotter_pdf.php');
 
 
 include('../includes/send_complaint_update.php');
+require_once __DIR__ . '/../includes/notifications.php';
 
 if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
     header("Location: ../auth/login.php");
@@ -38,14 +39,17 @@ if(isset($_POST['assign'])){
     // Check if already assigned
     $check = db_select_one($conn,
     "SELECT complaints.assigned_staff_id,
+            complaints.complainant_id,
             complaints.status,
             complaints.tracking_number,
             complaints.subject,
             users.email,
             users.firstname,
-            users.lastname
+            users.lastname,
+            residency.status AS residency_status
      FROM complaints
      JOIN users ON complaints.complainant_id = users.user_id
+     LEFT JOIN residency ON complaints.complainant_id = residency.user_id
      WHERE complaints.complaint_id=?
      LIMIT 1",
      'i',
@@ -57,6 +61,12 @@ if(isset($_POST['assign'])){
     }
 
     if($check['status'] === 'Cancelled'){
+        header("Location: $redirectUrl");
+        exit();
+    }
+
+    if(($check['residency_status'] ?? '') !== 'verified'){
+        $redirectUrl .= (strpos($redirectUrl, '?') === false ? '?' : '&') . 'residency_required=1';
         header("Location: $redirectUrl");
         exit();
     }
@@ -88,14 +98,29 @@ if(isset($_POST['assign'])){
             exit();
         }
 
-        db_execute($conn,
+        $assignStmt = db_prepared_query($conn,
     "UPDATE complaints
      SET assigned_staff_id=?,
          status='In Progress',
          resolution_confirmation=NULL
-     WHERE complaint_id=?",
-     'ii',
-     [$staff_id, $complaint_id]);
+     WHERE complaint_id=?
+     AND (
+         assigned_staff_id IS NULL
+         OR assigned_staff_id<>?
+         OR status<>'In Progress'
+     )",
+     'iii',
+     [$staff_id, $complaint_id, $staff_id]);
+
+    $assignmentChanged = $assignStmt ? mysqli_stmt_affected_rows($assignStmt) : 0;
+    if($assignStmt){
+        mysqli_stmt_close($assignStmt);
+    }
+
+    if($assignmentChanged <= 0){
+        header("Location: $redirectUrl");
+        exit();
+    }
 
     // Save log
     db_execute($conn,
@@ -125,6 +150,14 @@ if(isset($_POST['assign'])){
         'Barangay Admin'
     );
 
+    notify_user(
+        $conn,
+        intval($check['complainant_id'] ?? 0),
+        'Staff Assigned',
+        'The Punong Barangay has assigned ' . $staff_name . ' to handle your complaint.',
+        '../complainant/my_complaints.php?status=In+Progress#complaint-' . $complaint_id
+    );
+
     if(!empty($staff_data['email'])){
         sendComplaintTimelineUpdate(
             $staff_data['email'],
@@ -136,9 +169,21 @@ if(isset($_POST['assign'])){
             'Barangay Admin',
             rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/staff/view_complaints.php'
         );
+
+        notify_user(
+            $conn,
+            $staff_id,
+            'Complaint Assigned to You',
+            'A complaint has been assigned to you. Please review the details and add progress updates.',
+            '../staff/view_complaints.php?status=In+Progress'
+        );
     }
     }
 
+    $redirectUrl .= (strpos($redirectUrl, '?') === false ? '?' : '&') . http_build_query([
+        'assigned' => 1,
+        'staff_name' => $staff_name,
+    ]);
     header("Location: $redirectUrl");
     exit();
 }
@@ -164,6 +209,8 @@ if(isset($_POST['approve_blotter'])){
 
     $report = db_select_one($conn,
     "SELECT blotter_reports.report_id,
+            blotter_reports.complainant_user_id,
+            blotter_reports.staff_user_id,
             blotter_reports.report_path,
             blotter_reports.report_original_name,
             complaints.tracking_number,
@@ -271,6 +318,14 @@ if(isset($_POST['approve_blotter'])){
             $appUrl . '/complainant/my_complaints.php'
         );
 
+        notify_user(
+            $conn,
+            intval($report['complainant_user_id'] ?? 0),
+            'Blotter Approved',
+            'Admin approved the barangay blotter report. Please review your complaint and confirm if it is resolved.',
+            '../complainant/my_complaints.php?status=Awaiting+Confirmation#complaint-' . $complaintId
+        );
+
         if(!empty($report['staff_email'])){
             $staffName = trim($report['staff_firstname'] . ' ' . $report['staff_lastname']);
             sendComplaintTimelineUpdate(
@@ -282,6 +337,14 @@ if(isset($_POST['approve_blotter'])){
                 "Admin approved the barangay blotter / complaint report. The approved PDF is now visible in the complaint timeline.",
                 'Barangay Admin',
                 $appUrl . '/staff/view_complaints.php'
+            );
+
+            notify_user(
+                $conn,
+                intval($report['staff_user_id'] ?? 0),
+                'Blotter Approved',
+                'Admin approved the barangay blotter report. The approved PDF is visible in the timeline.',
+                '../staff/view_complaints.php?status=Resolved'
             );
         }
     }
@@ -346,9 +409,11 @@ $pagination = pagination_state($conn,
 $complaints = db_select_all($conn,
 "SELECT complaints.*, 
         u.firstname AS fname, u.lastname AS lname, u.email,
+        residency.status AS residency_status,
         s.firstname AS staff_fname, s.lastname AS staff_lname
  FROM complaints
  JOIN users u ON complaints.complainant_id = u.user_id
+ LEFT JOIN residency ON complaints.complainant_id = residency.user_id
  LEFT JOIN users s ON complaints.assigned_staff_id = s.user_id
  $whereSql
  ORDER BY complaints.complaint_id DESC" . $pagination['limit_sql'],
@@ -388,6 +453,20 @@ if(!empty($complaintIds)){
 <?php if(isset($_GET['blotter_approved'])): ?>
     <div class="table-card">
         <p style="margin:0; color:#15803d; font-weight:600;">Blotter report approved and added to the complaint timeline.</p>
+    </div>
+<?php endif; ?>
+
+<?php if(isset($_GET['assigned'])): ?>
+    <div class="table-card">
+        <p style="margin:0; color:#15803d; font-weight:600;">
+            You have assigned <?php echo htmlspecialchars($_GET['staff_name'] ?? 'the selected staff'); ?> successfully.
+        </p>
+    </div>
+<?php endif; ?>
+
+<?php if(isset($_GET['residency_required'])): ?>
+    <div class="table-card">
+        <p style="margin:0; color:#b91c1c; font-weight:600;">Cannot assign staff yet. The complainant residency is not verified.</p>
     </div>
 <?php endif; ?>
 
@@ -526,6 +605,8 @@ if($row['staff_fname']){
 
 <?php if($row['status'] === 'Cancelled'): ?>
     <span class="table-muted">Cancelled by complainant</span>
+<?php elseif(($row['residency_status'] ?? '') !== 'verified'): ?>
+    <span class="table-muted">Residency not verified. Staff assignment is disabled.</span>
 <?php else: ?>
 <form method="POST">
 

@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/mailer.php';
 
-function sendResidencySchedule($email, $fullname, $schedule){
+if(!function_exists('sendResidencySchedule')){
+function sendResidencySchedule($email, $fullname, $schedule): bool
+{
 
 $mail = createBarangayMailer();
 
@@ -23,17 +25,21 @@ $mail->Body = "
 
 <p>Please visit the Barangay Office at the scheduled time and bring a valid ID.</p>
 
+<p>You may log in here: <a href=\"" . APP_URL . "/auth/login.php\">Barangay Complaint System</a></p>
+
 <p>Thank you.</p>
 
 ";
 
-$mail->send();
+return $mail->send();
 
 }catch(Throwable $e){
 
-echo "Mailer Error: " . $mail->ErrorInfo;
+error_log("Residency schedule mailer error: " . $mail->ErrorInfo . " " . $e->getMessage());
+return false;
 
 }
 
+}
 }
 ?>

@@ -7,7 +7,8 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
 }
 
 include('../config/database.php');
-include('../includes/send_residency_schedule.php');
+require_once __DIR__ . '/../includes/send_residency_schedule.php';
+require_once __DIR__ . '/../includes/notifications.php';
 
 $user_id = intval($_GET['id'] ?? 0);
 $form_error = '';
@@ -73,7 +74,15 @@ if(isset($_POST['schedule'])){
 
         $fullname = $target['firstname']." ".$target['lastname'];
         $formatted_date = date("F d, Y - g:i A", strtotime($date));
-        sendResidencySchedule($target['email'], $fullname, $formatted_date);
+        $mailSent = sendResidencySchedule($target['email'], $fullname, $formatted_date);
+
+        notify_user(
+            $conn,
+            $user_id,
+            'Barangay Residency Appointment Schedule',
+            'Your residency appointment has been scheduled for ' . $formatted_date . '. Please visit the Barangay Office at the scheduled time and bring a valid ID.',
+            null
+        );
 
         db_execute(
             $conn,
@@ -83,8 +92,12 @@ if(isset($_POST['schedule'])){
             [intval($_SESSION['user_id']), "Scheduled residency appointment for user ID $user_id"]
         );
 
+        $alertMessage = $mailSent
+            ? 'Appointment scheduled and email sent!'
+            : 'Appointment scheduled. System notification was sent, but the email could not be sent.';
+
         echo "<script>
-        alert('Appointment Scheduled and Email Sent!');
+        alert(" . json_encode($alertMessage) . ");
         window.location='manage_users.php';
         </script>";
         exit();

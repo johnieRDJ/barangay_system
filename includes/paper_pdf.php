@@ -1,8 +1,9 @@
 <?php
 
 require_once __DIR__ . '/simple_pdf.php';
+require_once __DIR__ . '/validation.php';
 
-function paper_pdf_jpeg_path(?string $relativePath): ?string
+function paper_pdf_jpeg_path(?string $relativePath, bool $cleanSignature = false): ?string
 {
     if(!$relativePath){
         return null;
@@ -11,7 +12,23 @@ function paper_pdf_jpeg_path(?string $relativePath): ?string
     $path = realpath(__DIR__ . '/../' . ltrim($relativePath, '/\\'));
     $extension = $path ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
 
-    return $path && in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
+    if(!$path || !in_array($extension, ['jpg', 'jpeg', 'png'], true)){
+        return null;
+    }
+
+    if($cleanSignature){
+        $cleanPath = dirname($path) . DIRECTORY_SEPARATOR . pathinfo($path, PATHINFO_FILENAME) . '_pdf_clean.jpg';
+
+        if(!is_file($cleanPath) || filemtime($cleanPath) < filemtime($path)){
+            barangay_clean_signature_image_file($path, $cleanPath);
+        }
+
+        if(is_file($cleanPath)){
+            return $cleanPath;
+        }
+    }
+
+    return in_array($extension, ['jpg', 'jpeg'], true) ? $path : null;
 }
 
 function paper_pdf_header(SimplePdf $pdf, string $title, array $location = []): void
@@ -20,11 +37,11 @@ function paper_pdf_header(SimplePdf $pdf, string $title, array $location = []): 
     $provinceSeal = paper_pdf_jpeg_path('uploads/system/mis_occ_official_seal.jpg');
 
     if($citySeal){
-        $pdf->image($citySeal, 118, 672, 72);
+        $pdf->image($citySeal, 126, 676, 62, 62);
     }
 
     if($provinceSeal){
-        $pdf->image($provinceSeal, 434, 678, 58);
+        $pdf->image($provinceSeal, 424, 676, 62, 62);
     }
 
     $pdf->setY(710);
@@ -34,7 +51,7 @@ function paper_pdf_header(SimplePdf $pdf, string $title, array $location = []): 
     $pdf->center('City/Municipality of ' . (($location['city'] ?? '') ?: 'Tangub'));
     $pdf->center('Barangay ' . (($location['barangay'] ?? '') ?: 'Labuyo'));
     $pdf->center('Office of the Punong Barangay');
-    $pdf->blank(12);
+    $pdf->blank(18);
     $pdf->setFontSize(12);
     $pdf->line($title);
     $pdf->blank(12);
@@ -44,9 +61,10 @@ function paper_pdf_signature(SimplePdf $pdf, string $label, string $name, ?strin
 {
     $pdf->line($label . ':');
     $lineY = $pdf->getY() + 2;
+    $pdf->horizontalLine(170, $lineY - 3, 445);
 
     if($signaturePath){
-        $pdf->image($signaturePath, 300, max(72, $lineY), 46, 18);
+        $pdf->image($signaturePath, 280, max(72, $lineY - 5), 92, 32);
     }
 
     $pdf->labelValue('Signature', '');

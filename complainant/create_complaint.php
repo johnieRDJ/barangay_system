@@ -3,6 +3,8 @@ session_start();
 
 include('../config/database.php');
 include('../includes/complaint_updates.php');
+require_once __DIR__ . '/../includes/notifications.php';
+include('../includes/validation.php');
 
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'complainant'){
     header("Location: ../auth/login.php");
@@ -23,13 +25,32 @@ if(isset($_POST['submit'])){
     $submittedToken = $_POST['submit_token'] ?? '';
 
     $user_id = intval($_SESSION['user_id']);
+    $profile = db_select_one($conn,
+    "SELECT user_profiles.birthdate,
+            user_profiles.age,
+            user_profiles.valid_id_image,
+            residency.status AS residency_status
+     FROM user_profiles
+     LEFT JOIN residency ON user_profiles.user_id = residency.user_id
+     WHERE user_profiles.user_id=?
+     LIMIT 1",
+    'i',
+    [$user_id]);
+
+    $profileAge = !empty($profile['birthdate']) ? barangay_calculate_age_from_birthdate($profile['birthdate']) : intval($profile['age'] ?? 0);
 
     if(!hash_equals($_SESSION['complaint_submit_token'] ?? '', $submittedToken)){
         header("Location: my_complaints.php?submitted=1");
         exit();
     }
 
-    if($subject === '' || $description === ''){
+    if($profileAge < 18){
+        $form_error = 'You must be 18 years old or above before submitting a complaint. Please update your birthdate in My Profile.';
+    } elseif(empty($profile['valid_id_image'])){
+        $form_error = 'Please upload a valid ID in My Profile before submitting a complaint.';
+    } elseif(($profile['residency_status'] ?? '') !== 'verified'){
+        $form_error = 'Your residency is not yet verified. Please wait for barangay verification before submitting a complaint.';
+    } elseif($subject === '' || $description === ''){
         $form_error = 'Please complete the subject and complaint details.';
     } else {
         unset($_SESSION['complaint_submit_token']);
@@ -85,6 +106,14 @@ if(isset($_POST['submit'])){
              VALUES (?, ?)",
              'is',
              [$user_id, "Created complaint $tracking_number"]);
+
+            notify_role(
+                $conn,
+                'admin',
+                'New Complaint Submitted',
+                'A complainant submitted a new complaint with tracking number ' . $tracking_number . '.',
+                '../admin/manage_complaints.php?status=Pending&search=' . urlencode($tracking_number)
+            );
 
             header("Location: my_complaints.php?submitted=1");
             exit();

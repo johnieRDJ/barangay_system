@@ -6,9 +6,9 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'superadmin'){
     exit();
 }
 
+include('../config/database.php');
 include('../includes/header.php');
 include('../includes/sidebar.php');
-include('../config/database.php');
 
 // COUNT ADMINS
 $admins = mysqli_fetch_assoc(mysqli_query($conn,

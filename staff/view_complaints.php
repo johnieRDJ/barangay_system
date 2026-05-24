@@ -10,9 +10,55 @@ include('../config/database.php');
 include('../includes/pagination.php');
 include('../includes/complaint_updates.php');
 include('../includes/send_complaint_update.php');
+require_once __DIR__ . '/../includes/notifications.php';
+include_once('../includes/validation.php');
 
 $user_id = intval($_SESSION['user_id']);
 $update_error = '';
+$blotter_error = $_SESSION['staff_blotter_error'] ?? '';
+unset($_SESSION['staff_blotter_error']);
+
+function phone_tail_value(?string $phone): string
+{
+    $cleanPhone = barangay_clean_phone($phone ?? '');
+    return preg_match('/^09(\d{9})$/', $cleanPhone, $matches) ? $matches[1] : '';
+}
+
+function normalize_subject_person_name(string $value): string
+{
+    $value = strtolower($value);
+    $value = preg_replace('/\b(jr|sr|ii|iii|iv|v)\b\.?/i', ' ', $value);
+    $value = preg_replace('/[^a-z0-9]+/', ' ', $value);
+    return trim(preg_replace('/\s+/', ' ', $value));
+}
+
+function find_account_from_subject(string $subject, array $accounts): ?array
+{
+    $subjectName = normalize_subject_person_name($subject);
+
+    if($subjectName === ''){
+        return null;
+    }
+
+    foreach($accounts as $account){
+        $accountName = normalize_subject_person_name(trim(($account['firstname'] ?? '') . ' ' . ($account['lastname'] ?? '')));
+
+        if($accountName !== '' && $accountName === $subjectName){
+            return $account;
+        }
+    }
+
+    $matches = [];
+    foreach($accounts as $account){
+        $accountName = normalize_subject_person_name(trim(($account['firstname'] ?? '') . ' ' . ($account['lastname'] ?? '')));
+
+        if($accountName !== '' && (strpos($subjectName, $accountName) !== false || strpos($accountName, $subjectName) !== false)){
+            $matches[] = $account;
+        }
+    }
+
+    return count($matches) === 1 ? $matches[0] : null;
+}
 
 if(isset($_POST['update'])){
 
@@ -78,7 +124,7 @@ if(isset($_POST['update'])){
 
         foreach($proofFiles as $proofFile){
             $extension = strtolower(pathinfo($proofFile['name'], PATHINFO_EXTENSION));
-            $maxSize = in_array($extension, ['mp4', 'mov', 'webm'], true) ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+            $maxSize = barangay_max_image_upload_bytes();
 
             if($proofFile['error'] !== UPLOAD_ERR_OK){
                 $update_error = 'One of the proof files could not be uploaded. Please try again.';
@@ -91,7 +137,7 @@ if(isset($_POST['update'])){
             }
 
             if($proofFile['size'] > $maxSize){
-                $update_error = 'Images and PDFs must be 10MB or smaller. Videos must be 50MB or smaller.';
+                $update_error = 'Each proof file must be ' . barangay_max_upload_label() . ' or smaller.';
                 break;
             }
         }
@@ -131,6 +177,7 @@ if(isset($_POST['update'])){
         $resolutionConfirmationValue = $status === 'Resolved' ? 'pending' : null;
         $complaintNotice = db_select_one($conn,
         "SELECT complaints.tracking_number,
+                complaints.complainant_id,
                 complaints.subject,
                 users.email,
                 users.firstname,
@@ -224,6 +271,18 @@ if(isset($_POST['update'])){
                     $emailMessage,
                     'Barangay Staff'
                 );
+
+                notify_user(
+                    $conn,
+                    intval($complaintNotice['complainant_id']),
+                    $status === 'Resolved' ? 'Complaint Awaiting Your Confirmation' : 'Complaint Progress Updated',
+                    $status === 'Resolved'
+                        ? 'Staff marked your complaint as resolved. Please review the proof and confirm if it is resolved.'
+                        : 'Staff added a progress update to your complaint.',
+                    $status === 'Resolved'
+                        ? '../complainant/my_complaints.php?status=Awaiting+Confirmation#complaint-' . $id
+                        : '../complainant/my_complaints.php?status=In+Progress#complaint-' . $id
+                );
             }
         }
 
@@ -304,6 +363,14 @@ if(isset($_POST['submit_blotter_admin'])){
                 rtrim(defined('APP_URL') ? APP_URL : 'http://localhost/barangay', '/') . '/admin/manage_complaints.php'
             );
         }
+
+        notify_role(
+            $conn,
+            'admin',
+            'Blotter Awaiting Approval',
+            'A signed barangay blotter report has been submitted for admin review.',
+            '../admin/manage_complaints.php?status=In+Progress'
+        );
     }
 
     header("Location: view_complaints.php?" . http_build_query($redirectParams));
@@ -376,10 +443,12 @@ $complaints = db_select_all($conn,
         u.lastname AS complainant_lastname,
         u.email AS complainant_email,
         user_profiles.address AS complainant_address,
+        user_profiles.purok AS complainant_purok,
         user_profiles.phone AS complainant_phone,
         user_profiles.age AS complainant_age,
         user_profiles.gender AS complainant_gender,
-        user_profiles.civil_status AS complainant_civil_status
+        user_profiles.civil_status AS complainant_civil_status,
+        user_profiles.name_suffix AS complainant_name_suffix
  FROM complaints
  LEFT JOIN users u ON complaints.complainant_id = u.user_id
  LEFT JOIN user_profiles ON u.user_id = user_profiles.user_id
@@ -440,10 +509,13 @@ $accountRows = db_select_all($conn,
         users.lastname,
         users.email,
         user_profiles.address,
+        user_profiles.purok,
         user_profiles.phone,
         user_profiles.age,
+        user_profiles.birthdate,
         user_profiles.gender,
-        user_profiles.civil_status
+        user_profiles.civil_status,
+        user_profiles.name_suffix
  FROM users
  LEFT JOIN user_profiles ON users.user_id = user_profiles.user_id
  WHERE users.role != 'superadmin'
@@ -459,6 +531,12 @@ $accountRows = db_select_all($conn,
     <?php if($update_error !== ''): ?>
         <div class="table-card">
             <p style="margin:0; color:#b91c1c; font-weight:600;"><?php echo htmlspecialchars($update_error); ?></p>
+        </div>
+    <?php endif; ?>
+
+    <?php if($blotter_error !== ''): ?>
+        <div class="table-card">
+            <p style="margin:0; color:#b91c1c; font-weight:600;"><?php echo htmlspecialchars($blotter_error); ?></p>
         </div>
     <?php endif; ?>
 
@@ -517,6 +595,12 @@ $accountRows = db_select_all($conn,
                 $complaintId = intval($row['complaint_id']);
                 $latestReopenReason = $latestReopenReasonByComplaint[$complaintId] ?? null;
                 $latestBlotterReport = $blotterReportsByComplaint[$complaintId] ?? null;
+                $matchedRespondentAccount = find_account_from_subject($row['subject'] ?? '', $accountRows);
+                $matchedRespondentId = $matchedRespondentAccount ? intval($matchedRespondentAccount['user_id']) : 0;
+                $matchedRespondentName = $matchedRespondentAccount ? trim(($matchedRespondentAccount['firstname'] ?? '') . ' ' . ($matchedRespondentAccount['lastname'] ?? '')) : '';
+                $matchedRespondentAge = $matchedRespondentAccount
+                    ? (!empty($matchedRespondentAccount['birthdate']) ? barangay_calculate_age_from_birthdate($matchedRespondentAccount['birthdate']) : intval($matchedRespondentAccount['age'] ?? 0))
+                    : '';
                 ?>
                 <tr>
                     <td data-label="Complainant"><?php echo htmlspecialchars(trim(($row['complainant_firstname'] ?? '') . ' ' . ($row['complainant_lastname'] ?? ''))); ?></td>
@@ -579,7 +663,8 @@ $accountRows = db_select_all($conn,
                         <?php elseif($row['status'] === 'Resolved'): ?>
                             <span class="table-muted">Already resolved</span>
                         <?php else: ?>
-                            <form method="POST" enctype="multipart/form-data" class="complaint-update-form">
+                            <form method="POST" action="view_complaints.php" enctype="multipart/form-data" class="complaint-update-form">
+                                <input type="hidden" name="MAX_FILE_SIZE" value="<?php echo barangay_max_image_upload_bytes(); ?>">
                                 <input type="hidden" name="complaint_id" value="<?php echo $complaintId; ?>">
                                 <input type="hidden" name="page" value="<?php echo intval($pagination['page']); ?>">
                                 <input type="hidden" name="per_page" value="<?php echo intval($pagination['per_page']); ?>">
@@ -590,7 +675,7 @@ $accountRows = db_select_all($conn,
                                 </select>
                                 <textarea name="comment" placeholder="Add an update the complainant can see..." required></textarea>
                                 <input type="file" name="proof_files[]" accept=".jpg,.jpeg,.png,.pdf,.mp4,.mov,.webm" multiple>
-                                <p class="table-muted" style="margin:0;">Attach up to 6 photos, PDFs, or videos. Required for resolved complaints.</p>
+                                <p class="table-muted" style="margin:0;">Attach up to 6 photos, PDFs, or videos. Maximum file size: <?php echo barangay_max_upload_label(); ?> each. Required for resolved complaints.</p>
                                 <button type="submit" name="update">Save Update</button>
                             </form>
                         <?php endif; ?>
@@ -608,56 +693,125 @@ $accountRows = db_select_all($conn,
                                 </div>
 
                                 <div class="blotter-grid">
-                                    <label>Province<input name="province" type="text"></label>
-                                    <label>City/Municipality<input name="city" type="text"></label>
-                                    <label>Barangay<input name="barangay" type="text"></label>
-                                    <label>Blotter No.<input name="blotter_no" type="text" value="<?php echo htmlspecialchars($row['tracking_number']); ?>"></label>
-                                    <label>Date Filed<input name="date_filed" type="date" value="<?php echo date('Y-m-d'); ?>"></label>
-                                    <label>Time Filed<input name="time_filed" type="time" value="<?php echo date('H:i'); ?>"></label>
+                                    <label>Province<input name="province" type="text" pattern="[A-Za-z .'-]+" data-alpha-only required></label>
+                                    <label>City/Municipality<input name="city" type="text" pattern="[A-Za-z .'-]+" data-alpha-only required></label>
+                                    <label>Barangay<input name="barangay" type="text" pattern="[A-Za-z .'-]+" data-alpha-only required></label>
+                                    <label>Blotter No.<input name="blotter_no" type="text" value="<?php echo htmlspecialchars($row['tracking_number']); ?>" readonly required></label>
+                                    <label>Date Filed<input name="date_filed" type="date" value="<?php echo date('Y-m-d'); ?>" required></label>
+                                    <label>Time Filed<input name="time_filed" type="time" value="<?php echo date('H:i'); ?>" required></label>
                                 </div>
 
                                 <h3>Complainant Information</h3>
                                 <div class="blotter-grid">
-                                    <label>Full Name<input name="complainant_name" type="text" value="<?php echo htmlspecialchars(trim(($row['complainant_firstname'] ?? '') . ' ' . ($row['complainant_lastname'] ?? ''))); ?>"></label>
-                                    <label>Age<input name="complainant_age" type="text" value="<?php echo htmlspecialchars($row['complainant_age'] ?? ''); ?>"></label>
-                                    <label>Gender<input name="complainant_gender" type="text" value="<?php echo htmlspecialchars($row['complainant_gender'] ?? ''); ?>"></label>
-                                    <label>Civil Status<input name="complainant_civil_status" type="text" value="<?php echo htmlspecialchars($row['complainant_civil_status'] ?? ''); ?>"></label>
-                                    <label>Address<input name="complainant_address" type="text" value="<?php echo htmlspecialchars($row['complainant_address'] ?? ''); ?>"></label>
-                                    <label>Contact Number<input name="complainant_contact" type="text" value="<?php echo htmlspecialchars($row['complainant_phone'] ?? ''); ?>"></label>
+                                    <label>Full Name<input name="complainant_name" type="text" pattern="[A-Za-z .'-]+" value="<?php echo htmlspecialchars(trim(($row['complainant_firstname'] ?? '') . ' ' . ($row['complainant_lastname'] ?? ''))); ?>" data-alpha-only required></label>
+                                    <label>Suffix<select name="complainant_suffix">
+                                        <option value="">None</option>
+                                        <?php foreach(['Jr.','Sr.','II','III','IV','V'] as $suffixOption): ?>
+                                            <option value="<?php echo $suffixOption; ?>" <?php echo ($row['complainant_name_suffix'] ?? '') === $suffixOption ? 'selected' : ''; ?>><?php echo $suffixOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Age<input name="complainant_age" type="text" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" value="<?php echo htmlspecialchars($row['complainant_age'] ?? ''); ?>" data-digits-only required></label>
+                                    <label>Gender<select name="complainant_gender" required>
+                                        <option value="">Select Gender</option>
+                                        <?php foreach(['Male','Female','Other'] as $genderOption): ?>
+                                            <option value="<?php echo $genderOption; ?>" <?php echo ($row['complainant_gender'] ?? '') === $genderOption ? 'selected' : ''; ?>><?php echo $genderOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Civil Status<select name="complainant_civil_status" required>
+                                        <option value="">Select Civil Status</option>
+                                        <?php foreach(['Single','Married','Widowed','Separated'] as $civilOption): ?>
+                                            <option value="<?php echo $civilOption; ?>" <?php echo ($row['complainant_civil_status'] ?? '') === $civilOption ? 'selected' : ''; ?>><?php echo $civilOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Address<input name="complainant_address" type="text" pattern="[A-Za-z0-9 #\-\/\.,]+" value="<?php echo htmlspecialchars($row['complainant_address'] ?? ''); ?>" data-address-only required></label>
+                                    <label>Purok<select name="complainant_purok" required>
+                                        <option value="">Select Purok</option>
+                                        <?php foreach(barangay_allowed_puroks() as $purokOption): ?>
+                                            <?php if($purokOption === '') continue; ?>
+                                            <option value="<?php echo $purokOption; ?>" <?php echo (string)($row['complainant_purok'] ?? '') === $purokOption ? 'selected' : ''; ?>>Purok <?php echo $purokOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Contact Number
+                                        <div class="phone-input-group">
+                                            <span>09</span>
+                                            <input name="complainant_contact_tail" type="text" inputmode="numeric" pattern="[0-9]{9}" maxlength="9" value="<?php echo htmlspecialchars(phone_tail_value($row['complainant_phone'] ?? '')); ?>" data-digits-only required>
+                                        </div>
+                                    </label>
                                 </div>
 
                                 <h3>Person Complained Against</h3>
                                 <label>Use Existing Account
                                     <select class="respondent-account-select">
-                                        <option value="">Manual Entry</option>
+                                        <option value="" <?php echo $matchedRespondentId === 0 ? 'selected' : ''; ?>>Manual Entry</option>
                                         <?php foreach($accountRows as $account): ?>
+                                            <?php
+                                                $accountId = intval($account['user_id']);
+                                                $accountAge = !empty($account['birthdate'])
+                                                    ? barangay_calculate_age_from_birthdate($account['birthdate'])
+                                                    : intval($account['age'] ?? 0);
+                                            ?>
                                             <option
-                                                value="<?php echo intval($account['user_id']); ?>"
+                                                value="<?php echo $accountId; ?>"
                                                 data-name="<?php echo htmlspecialchars(trim($account['firstname'] . ' ' . $account['lastname'])); ?>"
-                                                data-age="<?php echo htmlspecialchars($account['age'] ?? ''); ?>"
+                                                data-suffix="<?php echo htmlspecialchars($account['name_suffix'] ?? ''); ?>"
+                                                data-age="<?php echo htmlspecialchars($accountAge ?: ''); ?>"
                                                 data-gender="<?php echo htmlspecialchars($account['gender'] ?? ''); ?>"
                                                 data-civil-status="<?php echo htmlspecialchars($account['civil_status'] ?? ''); ?>"
                                                 data-address="<?php echo htmlspecialchars($account['address'] ?? ''); ?>"
-                                                data-contact="<?php echo htmlspecialchars($account['phone'] ?? ''); ?>">
+                                                data-purok="<?php echo htmlspecialchars($account['purok'] ?? ''); ?>"
+                                                data-contact="<?php echo htmlspecialchars(phone_tail_value($account['phone'] ?? '')); ?>"
+                                                <?php echo $matchedRespondentId === $accountId ? 'selected' : ''; ?>>
                                                 <?php echo htmlspecialchars(trim($account['firstname'] . ' ' . $account['lastname']) . ' - ' . $account['email']); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
                                 </label>
+                                <?php if($matchedRespondentAccount): ?>
+                                    <p class="table-muted">Auto-filled from complaint subject: <?php echo htmlspecialchars($matchedRespondentName); ?></p>
+                                <?php endif; ?>
                                 <div class="blotter-grid">
-                                    <label>Full Name<input name="respondent_name" data-respondent-field="name" type="text"></label>
-                                    <label>Age<input name="respondent_age" data-respondent-field="age" type="text"></label>
-                                    <label>Gender<input name="respondent_gender" data-respondent-field="gender" type="text"></label>
-                                    <label>Civil Status<input name="respondent_civil_status" data-respondent-field="civilStatus" type="text"></label>
-                                    <label>Address<input name="respondent_address" data-respondent-field="address" type="text"></label>
-                                    <label>Contact Number<input name="respondent_contact" data-respondent-field="contact" type="text"></label>
+                                    <label>Full Name<input name="respondent_name" data-respondent-field="name" type="text" pattern="[A-Za-z .'-]+" value="<?php echo htmlspecialchars($matchedRespondentName); ?>" data-alpha-only required></label>
+                                    <label>Suffix<select name="respondent_suffix" data-respondent-field="suffix">
+                                        <option value="">None</option>
+                                        <?php foreach(['Jr.','Sr.','II','III','IV','V'] as $suffixOption): ?>
+                                            <option value="<?php echo $suffixOption; ?>" <?php echo ($matchedRespondentAccount['name_suffix'] ?? '') === $suffixOption ? 'selected' : ''; ?>><?php echo $suffixOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Age<input name="respondent_age" data-respondent-field="age" type="text" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" value="<?php echo htmlspecialchars($matchedRespondentAge ?: ''); ?>" data-digits-only required></label>
+                                    <label>Gender<select name="respondent_gender" data-respondent-field="gender" required>
+                                        <option value="">Select Gender</option>
+                                        <option value="Male" <?php echo ($matchedRespondentAccount['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+                                        <option value="Female" <?php echo ($matchedRespondentAccount['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+                                        <option value="Other" <?php echo ($matchedRespondentAccount['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                                    </select></label>
+                                    <label>Civil Status<select name="respondent_civil_status" data-respondent-field="civilStatus" required>
+                                        <option value="">Select Civil Status</option>
+                                        <option value="Single" <?php echo ($matchedRespondentAccount['civil_status'] ?? '') === 'Single' ? 'selected' : ''; ?>>Single</option>
+                                        <option value="Married" <?php echo ($matchedRespondentAccount['civil_status'] ?? '') === 'Married' ? 'selected' : ''; ?>>Married</option>
+                                        <option value="Widowed" <?php echo ($matchedRespondentAccount['civil_status'] ?? '') === 'Widowed' ? 'selected' : ''; ?>>Widowed</option>
+                                        <option value="Separated" <?php echo ($matchedRespondentAccount['civil_status'] ?? '') === 'Separated' ? 'selected' : ''; ?>>Separated</option>
+                                    </select></label>
+                                    <label>Address<input name="respondent_address" data-respondent-field="address" type="text" pattern="[A-Za-z0-9 #\-\/\.,]+" value="<?php echo htmlspecialchars($matchedRespondentAccount['address'] ?? ''); ?>" data-address-only required></label>
+                                    <label>Purok<select name="respondent_purok" data-respondent-field="purok" required>
+                                        <option value="">Select Purok</option>
+                                        <?php foreach(barangay_allowed_puroks() as $purokOption): ?>
+                                            <?php if($purokOption === '') continue; ?>
+                                            <option value="<?php echo $purokOption; ?>" <?php echo (string)($matchedRespondentAccount['purok'] ?? '') === $purokOption ? 'selected' : ''; ?>>Purok <?php echo $purokOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Contact Number
+                                        <div class="phone-input-group">
+                                            <span>09</span>
+                                            <input name="respondent_contact_tail" data-respondent-field="contact" type="text" inputmode="numeric" pattern="[0-9]{9}" maxlength="9" value="<?php echo htmlspecialchars(phone_tail_value($matchedRespondentAccount['phone'] ?? '')); ?>" data-digits-only required>
+                                        </div>
+                                    </label>
                                 </div>
 
                                 <h3>Incident Details</h3>
                                 <div class="blotter-grid">
-                                    <label>Date of Incident<input name="incident_date" type="date"></label>
-                                    <label>Time of Incident<input name="incident_time" type="time"></label>
-                                    <label>Place of Incident<input name="incident_place" type="text"></label>
+                                    <label>Date of Incident<input name="incident_date" type="date" required></label>
+                                    <label>Time of Incident<input name="incident_time" type="time" required></label>
+                                    <label>Place of Incident<input name="incident_place" type="text" required></label>
                                 </div>
 
                                 <div class="blotter-checks">
@@ -668,10 +822,10 @@ $accountRows = db_select_all($conn,
                                     <label><input type="checkbox" name="complaint_types[]" value="Physical/Verbal Dispute"> Physical/Verbal Dispute</label>
                                     <label><input type="checkbox" name="complaint_types[]" value="Other"> Other</label>
                                 </div>
-                                <label>Other Complaint Type<input name="complaint_type_other" type="text"></label>
+                                <label>Other Complaint Type<input name="complaint_type_other" type="text" data-required-when="complaint_types:Other"></label>
 
                                 <h3>Statement of Complaint</h3>
-                                <textarea name="statement_details" rows="5"><?php echo htmlspecialchars($row['description']); ?></textarea>
+                                <textarea name="statement_details" rows="5" required><?php echo htmlspecialchars($row['description']); ?></textarea>
 
                                 <h3>Requested Action</h3>
                                 <div class="blotter-checks">
@@ -681,24 +835,36 @@ $accountRows = db_select_all($conn,
                                     <label><input type="checkbox" name="requested_actions[]" value="Issue a certification if needed"> Issue certification if needed</label>
                                     <label><input type="checkbox" name="requested_actions[]" value="Other"> Other</label>
                                 </div>
-                                <label>Other Action<input name="other_action" type="text"></label>
+                                <label>Other Action<input name="other_action" type="text" data-required-when="requested_actions:Other"></label>
 
                                 <h3>Witness Information</h3>
                                 <div class="blotter-grid">
-                                    <label>Name of Witness<input name="witness_name" type="text"></label>
-                                    <label>Address<input name="witness_address" type="text"></label>
-                                    <label>Contact Number<input name="witness_contact" type="text"></label>
+                                    <label>Name of Witness (optional)<input name="witness_name" type="text" pattern="[A-Za-z .'-]+" data-alpha-only></label>
+                                    <label>Address (optional)<input name="witness_address" type="text" pattern="[A-Za-z0-9 #\-\/\.,]+" data-address-only></label>
+                                    <label>Purok (optional)<select name="witness_purok">
+                                        <option value="">Select Purok</option>
+                                        <?php foreach(barangay_allowed_puroks() as $purokOption): ?>
+                                            <?php if($purokOption === '') continue; ?>
+                                            <option value="<?php echo $purokOption; ?>">Purok <?php echo $purokOption; ?></option>
+                                        <?php endforeach; ?>
+                                    </select></label>
+                                    <label>Contact Number (optional)
+                                        <div class="phone-input-group">
+                                            <span>09</span>
+                                            <input name="witness_contact_tail" type="text" inputmode="numeric" pattern="[0-9]{9}" maxlength="9" data-digits-only>
+                                        </div>
+                                    </label>
                                 </div>
                                 <label>Statement of Witness<textarea name="witness_statement" rows="3"></textarea></label>
 
                                 <h3>Barangay Action</h3>
                                 <div class="blotter-grid">
-                                    <label>Date of Action<input name="action_date" type="date"></label>
+                                    <label>Date of Action<input name="action_date" type="date" required></label>
                                     <label>Remarks<input name="action_remarks" type="text"></label>
-                                    <label>Recorded By<input name="recorded_by" type="text"></label>
-                                    <label>Position<input name="recorded_position" type="text" value="Barangay Secretary / Desk Officer"></label>
+                                    <label>Recorded By<input name="recorded_by" type="text" pattern="[A-Za-z .'-]+" data-alpha-only required></label>
+                                    <label>Position<input name="recorded_position" type="text" value="Barangay Secretary / Desk Officer" required></label>
                                     <label>Issued Day
-                                        <select name="issued_day">
+                                        <select name="issued_day" required>
                                             <option value="">Day</option>
                                             <?php for($day = 1; $day <= 31; $day++): ?>
                                                 <option value="<?php echo $day; ?>" <?php echo intval(date('j')) === $day ? 'selected' : ''; ?>><?php echo $day; ?></option>
@@ -706,21 +872,21 @@ $accountRows = db_select_all($conn,
                                         </select>
                                     </label>
                                     <label>Issued Month
-                                        <select name="issued_month">
+                                        <select name="issued_month" required>
                                             <?php foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $month): ?>
                                                 <option value="<?php echo $month; ?>" <?php echo date('F') === $month ? 'selected' : ''; ?>><?php echo $month; ?></option>
                                             <?php endforeach; ?>
                                         </select>
                                     </label>
                                     <label>Issued Year
-                                        <select name="issued_year_suffix">
+                                        <select name="issued_year_suffix" required>
                                             <?php for($year = intval(date('Y')) - 1; $year <= intval(date('Y')) + 5; $year++): ?>
                                                 <option value="<?php echo substr((string)$year, -2); ?>" <?php echo intval(date('Y')) === $year ? 'selected' : ''; ?>><?php echo $year; ?></option>
                                             <?php endfor; ?>
                                         </select>
                                     </label>
-                                    <label>Prepared By<input name="prepared_by" type="text" value="Barangay Secretary / Desk Officer"></label>
-                                    <label>Approved By<input name="approved_by" type="text" value="Punong Barangay"></label>
+                                    <label>Prepared By<input name="prepared_by" type="text" value="Barangay Secretary / Desk Officer" required></label>
+                                    <label>Approved By<input name="approved_by" type="text" value="Punong Barangay" required></label>
                                 </div>
 
                                 <div class="modal-actions">
@@ -749,10 +915,12 @@ document.querySelectorAll('.respondent-account-select').forEach(function(select)
 
         const values = {
             name: option.dataset.name || '',
+            suffix: option.dataset.suffix || '',
             age: option.dataset.age || '',
             gender: option.dataset.gender || '',
             civilStatus: option.dataset.civilStatus || '',
             address: option.dataset.address || '',
+            purok: option.dataset.purok || '',
             contact: option.dataset.contact || ''
         };
 
@@ -763,6 +931,63 @@ document.querySelectorAll('.respondent-account-select').forEach(function(select)
             }
         });
     });
+});
+
+document.querySelectorAll('.blotter-form').forEach(function(form) {
+    const validateGroup = function(name, message) {
+        const boxes = Array.from(form.querySelectorAll('input[name="' + name + '[]"]'));
+        if (boxes.length === 0) {
+            return true;
+        }
+
+        const checked = boxes.some(function(box) { return box.checked; });
+        boxes[0].setCustomValidity(checked ? '' : message);
+        return checked;
+    };
+
+    const toggleConditionalRequired = function(groupName, value, fieldName) {
+        const toggle = form.querySelector('input[name="' + groupName + '[]"][value="' + value + '"]');
+        const field = form.querySelector('[name="' + fieldName + '"]');
+
+        if (!toggle || !field) {
+            return true;
+        }
+
+        field.required = toggle.checked;
+        if (toggle.checked && field.value.trim() === '') {
+            field.setCustomValidity('Please complete this field.');
+            return false;
+        }
+
+        field.setCustomValidity('');
+        return true;
+    };
+
+    const refreshValidation = function() {
+        const typesOk = validateGroup('complaint_types', 'Please select at least one complaint type.');
+        const actionsOk = validateGroup('requested_actions', 'Please select at least one requested action.');
+        const otherTypeOk = toggleConditionalRequired('complaint_types', 'Other', 'complaint_type_other');
+        const otherActionOk = toggleConditionalRequired('requested_actions', 'Other', 'other_action');
+
+        return typesOk && actionsOk && otherTypeOk && otherActionOk;
+    };
+
+    form.querySelectorAll('input[name="complaint_types[]"], input[name="requested_actions[]"], [name="complaint_type_other"], [name="other_action"]').forEach(function(field) {
+        field.addEventListener('input', refreshValidation);
+        field.addEventListener('change', refreshValidation);
+    });
+
+    form.addEventListener('submit', function(event) {
+        if (!refreshValidation()) {
+            event.preventDefault();
+            const invalid = form.querySelector(':invalid');
+            if (invalid) {
+                invalid.reportValidity();
+            }
+        }
+    });
+
+    refreshValidation();
 });
 </script>
 

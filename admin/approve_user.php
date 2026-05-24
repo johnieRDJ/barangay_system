@@ -3,6 +3,7 @@ session_start();
 
 include('../config/database.php');
 include('../includes/send_account_status.php'); // IMPORTANT
+require_once __DIR__ . '/../includes/notifications.php';
 
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
     header("Location: ../auth/login.php");
@@ -54,6 +55,14 @@ $fullname = $user['firstname'] . " " . $user['lastname'];
 
 // Send approval email
 sendAccountStatus($user['email'], $fullname, "approved");
+
+notify_user(
+    $conn,
+    $id,
+    'Account Approved',
+    'Your account has been approved. Please complete your My Profile information, including your address, phone number, birthdate, civil status, valid ID, and profile picture.',
+    '../' . ($target['role'] ?? 'complainant') . '/profile.php'
+);
 
 // Save log
 db_execute($conn,

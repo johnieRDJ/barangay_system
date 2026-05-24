@@ -141,9 +141,13 @@ foreach($uniqueUserTables as $table => $indexName){
 
 $profileExtraColumns = [
     'age' => "ALTER TABLE user_profiles ADD COLUMN age INT(3) DEFAULT NULL AFTER phone",
+    'birthdate' => "ALTER TABLE user_profiles ADD COLUMN birthdate DATE DEFAULT NULL AFTER phone",
+    'purok' => "ALTER TABLE user_profiles ADD COLUMN purok TINYINT(2) DEFAULT NULL AFTER address",
     'gender' => "ALTER TABLE user_profiles ADD COLUMN gender VARCHAR(50) DEFAULT NULL AFTER age",
     'civil_status' => "ALTER TABLE user_profiles ADD COLUMN civil_status VARCHAR(50) DEFAULT NULL AFTER gender",
     'signature_image' => "ALTER TABLE user_profiles ADD COLUMN signature_image VARCHAR(255) DEFAULT NULL AFTER profile_image",
+    'name_suffix' => "ALTER TABLE user_profiles ADD COLUMN name_suffix VARCHAR(20) DEFAULT NULL AFTER civil_status",
+    'valid_id_image' => "ALTER TABLE user_profiles ADD COLUMN valid_id_image VARCHAR(255) DEFAULT NULL AFTER signature_image",
 ];
 foreach($profileExtraColumns as $columnName => $alterSql){
     $profileColumn = mysqli_query($conn, "SHOW COLUMNS FROM user_profiles LIKE '$columnName'");
@@ -151,6 +155,48 @@ foreach($profileExtraColumns as $columnName => $alterSql){
         mysqli_query($conn, $alterSql);
     }
 }
+
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS admin_action_requests (
+    request_id INT(11) NOT NULL AUTO_INCREMENT,
+    requested_by INT(11) NOT NULL,
+    target_user_id INT(11) NOT NULL,
+    action_type ENUM('edit','delete') NOT NULL,
+    payload LONGTEXT DEFAULT NULL,
+    status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    reviewed_by INT(11) DEFAULT NULL,
+    reviewed_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (request_id),
+    KEY requested_by (requested_by),
+    KEY target_user_id (target_user_id),
+    KEY status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS notifications (
+    notification_id INT(11) NOT NULL AUTO_INCREMENT,
+    user_id INT(11) NOT NULL,
+    subject VARCHAR(180) NOT NULL,
+    message TEXT NOT NULL,
+    link VARCHAR(255) DEFAULT NULL,
+    read_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (notification_id),
+    KEY user_id (user_id),
+    KEY read_at (read_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS announcements (
+    announcement_id INT(11) NOT NULL AUTO_INCREMENT,
+    created_by INT(11) NOT NULL,
+    recipient_role VARCHAR(50) NOT NULL DEFAULT 'all',
+    subject VARCHAR(180) NOT NULL,
+    message TEXT NOT NULL,
+    announcement_date DATE DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (announcement_id),
+    KEY created_by (created_by),
+    KEY recipient_role (recipient_role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
 $complaintResolutionColumn = mysqli_query($conn, "SHOW COLUMNS FROM complaints LIKE 'resolution_confirmation'");
 if($complaintResolutionColumn instanceof mysqli_result && mysqli_num_rows($complaintResolutionColumn) === 0){

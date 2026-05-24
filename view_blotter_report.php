@@ -7,6 +7,7 @@ if(!isset($_SESSION['user_id'], $_SESSION['role'])){
 }
 
 include(__DIR__ . '/config/database.php');
+include_once(__DIR__ . '/includes/blotter_pdf.php');
 
 function showBlotterMessage(string $title, string $message, int $statusCode = 404): void
 {
@@ -70,6 +71,8 @@ if($role === 'complainant'){
 if(!$canView){
     showBlotterMessage('Access Denied', 'You are not allowed to view this blotter report.', 403);
 }
+
+regenerate_blotter_report_pdf($conn, $reportId);
 
 $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($report['report_path'], "/\\"));
 $allowedFolder = realpath(__DIR__ . '/uploads');

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 20, 2026 at 04:19 PM
+-- Generation Time: May 24, 2026 at 09:19 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,6 +20,40 @@ SET time_zone = "+00:00";
 --
 -- Database: `barangay_db`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_action_requests`
+--
+
+CREATE TABLE `admin_action_requests` (
+  `request_id` int(11) NOT NULL,
+  `requested_by` int(11) NOT NULL,
+  `target_user_id` int(11) NOT NULL,
+  `action_type` enum('edit','delete') NOT NULL,
+  `payload` longtext DEFAULT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by` int(11) DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `announcements`
+--
+
+CREATE TABLE `announcements` (
+  `announcement_id` int(11) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `recipient_role` varchar(50) NOT NULL DEFAULT 'all',
+  `subject` varchar(180) NOT NULL,
+  `message` text NOT NULL,
+  `announcement_date` date DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -78,7 +112,11 @@ INSERT INTO `blotter_reports` (`report_id`, `complaint_id`, `staff_user_id`, `co
 (1, 53, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_53_4_1779092759.pdf', 'Barangay Blotter Report - CMP-20260518-00053.pdf', NULL, '1779092371_4_arjay_e_signature.jpg', '1779094234_53_2_rj_complainant_e_signature.jpg', '1779092799_1_admin_e_signature.jpg', NULL, '2026-05-18 08:25:59', '2026-05-18 08:53:07'),
 (2, 54, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_54_4_1779096515.pdf', 'Barangay Blotter Report - CMP-20260518-00054.pdf', NULL, '1779092371_4_arjay_e_signature.jpg', '1779096583_54_2_rj_complainant_e_signature.jpg', '1779092799_1_admin_e_signature.jpg', NULL, '2026-05-18 09:28:35', '2026-05-18 09:32:26'),
 (3, 55, 4, 2, NULL, 'awaiting_complainant_signature', 'uploads/complaint_proofs/blotter_55_4_1779116553.pdf', 'Barangay Blotter Report - CMP-20260518-00055.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260518-00055\",\"date_filed\":\"May 18, 2026\",\"time_filed\":\"10:58 PM\",\"complainant_name\":\"Rj Derubio\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_contact\":\"0985736475\",\"respondent_name\":\"Jay Zulieta\",\"respondent_age\":\"25\",\"respondent_gender\":\"Male\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"labuyo purok-4\",\"respondent_contact\":\"09675856474\",\"incident_date\":\"May 17, 2026\",\"incident_time\":\"9:01 AM\",\"incident_place\":\"100th street avenue, Corner recto st.\",\"complaint_types\":[],\"complaint_type_other\":\"Trespassing\",\"statement_details\":\"Trespassing my property many times, kag if ma paakan sa iro akoa pang sala, sag siya rang ga trespass sakong yuta\",\"requested_actions\":[\"Summon the respondent for mediation\",\"Assist both parties in settling the matter peacefully\"],\"other_action\":\"\",\"witness_name\":\"N\\/A\",\"witness_address\":\"N\\/A\",\"witness_contact\":\"N\\/A\",\"witness_statement\":\"N\\/A\",\"action_date\":\"May 18, 2026\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"18\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', NULL, NULL, NULL, '2026-05-18 15:02:33', '2026-05-18 15:02:33'),
-(4, 56, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_56_4_1779117940.pdf', 'Barangay Blotter Report - CMP-20260518-00056.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260518-00056\",\"date_filed\":\"May 18, 2026\",\"time_filed\":\"11:22 PM\",\"complainant_name\":\"Rj Derubio\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_contact\":\"0985736475\",\"respondent_name\":\"Taylor Swift\",\"respondent_age\":\"36\",\"respondent_gender\":\"Female\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Labuyo purok-1\",\"respondent_contact\":\"09563452272\",\"incident_date\":\"May 15, 2026\",\"incident_time\":\"11:23 PM\",\"incident_place\":\"Block 5 Lot 50\",\"complaint_types\":[\"Neighborhood Conflict\"],\"complaint_type_other\":\"\",\"statement_details\":\"Mare banha kaayu imo tingog permi nlng patukar karaoke sag gabiing dako\",\"requested_actions\":[\"Summon the respondent for mediation\",\"Assist both parties in settling the matter peacefully\"],\"other_action\":\"\",\"witness_name\":\"Jason Derulo\",\"witness_address\":\"Block 5 Lot 49\",\"witness_contact\":\"08969678565\",\"witness_statement\":\"Silingan sab ko niya sir\\/ma\'am banha jd. Sag gabii na bah. 1 week nana sya permi ingani ka dugay sir\\/ma\'am mo kanta, ga relapse permi.\",\"action_date\":\"\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"18\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', '1779118017_56_2_rj_complainant_e_signature.jpg', '1779092799_1_admin_e_signature.jpg', NULL, '2026-05-18 15:25:40', '2026-05-18 15:28:50');
+(4, 56, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_56_4_1779117940.pdf', 'Barangay Blotter Report - CMP-20260518-00056.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260518-00056\",\"date_filed\":\"May 18, 2026\",\"time_filed\":\"11:22 PM\",\"complainant_name\":\"Rj Derubio\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_contact\":\"0985736475\",\"respondent_name\":\"Taylor Swift\",\"respondent_age\":\"36\",\"respondent_gender\":\"Female\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Labuyo purok-1\",\"respondent_contact\":\"09563452272\",\"incident_date\":\"May 15, 2026\",\"incident_time\":\"11:23 PM\",\"incident_place\":\"Block 5 Lot 50\",\"complaint_types\":[\"Neighborhood Conflict\"],\"complaint_type_other\":\"\",\"statement_details\":\"Mare banha kaayu imo tingog permi nlng patukar karaoke sag gabiing dako\",\"requested_actions\":[\"Summon the respondent for mediation\",\"Assist both parties in settling the matter peacefully\"],\"other_action\":\"\",\"witness_name\":\"Jason Derulo\",\"witness_address\":\"Block 5 Lot 49\",\"witness_contact\":\"08969678565\",\"witness_statement\":\"Silingan sab ko niya sir\\/ma\'am banha jd. Sag gabii na bah. 1 week nana sya permi ingani ka dugay sir\\/ma\'am mo kanta, ga relapse permi.\",\"action_date\":\"\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"18\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', '1779118017_56_2_rj_complainant_e_signature.jpg', '1779092799_1_admin_e_signature.jpg', NULL, '2026-05-18 15:25:40', '2026-05-18 15:28:50'),
+(5, 57, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_57_4_1779318749.pdf', 'Barangay Blotter Report - CMP-20260521-00057.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub City\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260521-00057\",\"date_filed\":\"May 21, 2026\",\"time_filed\":\"7:08 AM\",\"complainant_name\":\"Rj Derubio Jr.\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_purok\":\"7\",\"complainant_contact\":\"09785353563\",\"respondent_name\":\"fthfh Jr.\",\"respondent_age\":\"77\",\"respondent_gender\":\"Male\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Balay nila\",\"respondent_purok\":\"4\",\"respondent_contact\":\"09585675757\",\"incident_date\":\"May 19, 2026\",\"incident_time\":\"7:11 PM\",\"incident_place\":\"balay ni rj\",\"complaint_types\":[\"Physical\\/Verbal Dispute\",\"Other\"],\"complaint_type_other\":\"5rryjcfy\",\"statement_details\":\"FirstTest\",\"requested_actions\":[\"Record this incident in the barangay blotter\",\"Other\"],\"other_action\":\"icryjcyr\",\"witness_name\":\"\",\"witness_address\":\"\",\"witness_purok\":\"\",\"witness_contact\":\"\",\"witness_statement\":\"crjcyj\",\"action_date\":\"May 19, 2026\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"21\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', '1779318911_2_example-wagi_scan_clean.jpg', '1779325789_1_gab_signature_clean.jpg', NULL, '2026-05-20 23:12:29', '2026-05-21 01:10:43'),
+(6, 58, 4, 2, NULL, 'awaiting_complainant_signature', 'uploads/complaint_proofs/blotter_58_4_1779344525.pdf', 'Barangay Blotter Report - CMP-20260521-00058.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub City\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260521-00058\",\"date_filed\":\"May 21, 2026\",\"time_filed\":\"10:15 AM\",\"complainant_name\":\"Rj Derubio Jr.\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_purok\":\"3\",\"complainant_contact\":\"09785353563\",\"respondent_name\":\"Second Test Sr.\",\"respondent_age\":\"22\",\"respondent_gender\":\"Male\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Balay nila\",\"respondent_purok\":\"1\",\"respondent_contact\":\"09999999999\",\"incident_date\":\"May 20, 2026\",\"incident_time\":\"10:15 PM\",\"incident_place\":\"Tindahan ni Febb\",\"complaint_types\":[\"Physical\\/Verbal Dispute\"],\"complaint_type_other\":\"u9pup\",\"statement_details\":\"Second test nani\",\"requested_actions\":[\"Record this incident in the barangay blotter\"],\"other_action\":\"u9pup\",\"witness_name\":\"\",\"witness_address\":\"\",\"witness_purok\":\"\",\"witness_contact\":\"\",\"witness_statement\":\"u9pup\",\"action_date\":\"May 19, 2026\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"21\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', NULL, NULL, NULL, '2026-05-21 06:22:05', '2026-05-21 06:22:05'),
+(7, 59, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_59_4_1779344848.pdf', 'Barangay Blotter Report - CMP-20260521-00059.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub City\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260521-00059\",\"date_filed\":\"May 21, 2026\",\"time_filed\":\"2:26 PM\",\"complainant_name\":\"Rj Derubio Jr.\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_purok\":\"3\",\"complainant_contact\":\"09785353563\",\"respondent_name\":\"third Jr.\",\"respondent_age\":\"70\",\"respondent_gender\":\"Male\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Balay nila\",\"respondent_purok\":\"8\",\"respondent_contact\":\"09546356454\",\"incident_date\":\"May 19, 2026\",\"incident_time\":\"2:27 AM\",\"incident_place\":\"Tindahan ni Febb\",\"complaint_types\":[\"Theft\",\"Physical\\/Verbal Dispute\",\"Other\"],\"complaint_type_other\":\"sdgs\",\"statement_details\":\"3eg\",\"requested_actions\":[\"Record this incident in the barangay blotter\",\"Other\"],\"other_action\":\"gsggs\",\"witness_name\":\"\",\"witness_address\":\"\",\"witness_purok\":\"\",\"witness_contact\":\"\",\"witness_statement\":\"ngdcnfgn\",\"action_date\":\"May 23, 2026\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"21\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', '1779352353_2_gab_signature_clean.jpg', '1779325789_1_gab_signature_clean.jpg', NULL, '2026-05-21 06:27:28', '2026-05-21 08:34:42'),
+(8, 60, 4, 2, 1, 'approved', 'uploads/complaint_proofs/blotter_60_4_1779473191.pdf', 'Barangay Blotter Report - CMP-20260523-00060.pdf', '{\"province\":\"Misamis Occidental\",\"city\":\"Tangub City\",\"barangay\":\"Labuyo\",\"blotter_no\":\"CMP-20260523-00060\",\"date_filed\":\"May 23, 2026\",\"time_filed\":\"2:05 AM\",\"complainant_name\":\"Rj Derubio Jr.\",\"complainant_age\":\"23\",\"complainant_gender\":\"Male\",\"complainant_civil_status\":\"Single\",\"complainant_address\":\"labuyo\",\"complainant_purok\":\"3\",\"complainant_contact\":\"09785353563\",\"respondent_name\":\"Shane Salazar\",\"respondent_age\":\"21\",\"respondent_gender\":\"Male\",\"respondent_civil_status\":\"Single\",\"respondent_address\":\"Purok 7, Barangay Aguada, Ozamiz City\",\"respondent_purok\":\"5\",\"respondent_contact\":\"09170000027\",\"incident_date\":\"May 18, 2026\",\"incident_time\":\"2:05 AM\",\"incident_place\":\"Tindahan ni Febb\",\"complaint_types\":[\"Theft\",\"Other\"],\"complaint_type_other\":\"ouo\",\"statement_details\":\"Test 6\",\"requested_actions\":[\"Record this incident in the barangay blotter\"],\"other_action\":\"\",\"witness_name\":\"\",\"witness_address\":\"\",\"witness_purok\":\"\",\"witness_contact\":\"\",\"witness_statement\":\"ihbihbi\",\"action_date\":\"May 27, 2026\",\"action_remarks\":\"\",\"recorded_by\":\"Arjay\",\"recorded_position\":\"Barangay Secretary \\/ Desk Officer\",\"issued_day\":\"23\",\"issued_month\":\"May\",\"issued_year_suffix\":\"26\",\"prepared_by\":\"Barangay Secretary \\/ Desk Officer\",\"approved_by\":\"Punong Barangay\"}', '1779092371_4_arjay_e_signature.jpg', '1779473266_2_example-wagi_scan_clean.jpg', '1779325789_1_gab_signature_clean.jpg', NULL, '2026-05-22 18:06:31', '2026-05-22 18:10:15');
 
 -- --------------------------------------------------------
 
@@ -159,7 +197,11 @@ INSERT INTO `complaints` (`complaint_id`, `tracking_number`, `complainant_id`, `
 (53, 'CMP-20260518-00053', 2, 4, 'Neil Martin Molina', 'Pa blotter nako siya sir kay nangutang wako bayri', NULL, 'In Progress', NULL, '2026-05-18 08:21:16'),
 (54, 'CMP-20260518-00054', 2, 4, 'Renato Capundag', 'Ni sulod balay nanguhag lamas', NULL, 'In Progress', NULL, '2026-05-18 09:25:19'),
 (55, 'CMP-20260518-00055', 2, 4, 'Jay Zulieta', 'Trespassing my property many times, kag if ma paakan sa iro akoa pang sala, sag siya rang ga trespass sakong yuta', NULL, 'In Progress', NULL, '2026-05-18 14:30:48'),
-(56, 'CMP-20260518-00056', 2, 4, 'Taylor Swift', 'Mare banha kaayu imo tingog permi nlng patukar karaoke sag gabiing dako', 'Already has a blotter report as proof, please be present in the said date for hearing', 'In Progress', NULL, '2026-05-18 15:21:21');
+(56, 'CMP-20260518-00056', 2, 4, 'Taylor Swift', 'Mare banha kaayu imo tingog permi nlng patukar karaoke sag gabiing dako', 'Already has a blotter report as proof, please be present in the said date for hearing', 'In Progress', NULL, '2026-05-18 15:21:21'),
+(57, 'CMP-20260521-00057', 2, 4, 'First Test after the massive modify of the system.', 'FirstTest', NULL, 'In Progress', 'reopened', '2026-05-20 18:23:51'),
+(58, 'CMP-20260521-00058', 2, 4, 'Second Test', 'Second test nani', NULL, 'In Progress', NULL, '2026-05-21 01:51:03'),
+(59, 'CMP-20260521-00059', 2, 4, 'third test', '3eg', NULL, 'Resolved', 'pending', '2026-05-21 06:24:15'),
+(60, 'CMP-20260523-00060', 2, 4, 'Shane Salazar', 'Test 6', NULL, 'Resolved', 'confirmed', '2026-05-22 18:03:18');
 
 -- --------------------------------------------------------
 
@@ -358,7 +400,30 @@ INSERT INTO `complaint_updates` (`update_id`, `complaint_id`, `actor_user_id`, `
 (186, 56, 2, 'complainant', 'blotter_signed', 'awaiting_complainant_signature', 'Complainant signed the barangay blotter / complaint report.', NULL, NULL, '2026-05-18 15:26:57'),
 (187, 56, 4, 'staff', 'blotter_submitted_to_admin', 'For Admin Review', 'Assigned staff submitted the signed blotter report to admin for review.', NULL, NULL, '2026-05-18 15:27:55'),
 (188, 56, 1, 'admin', 'blotter_approved', 'Approved', 'Admin approved the barangay blotter / complaint report.', NULL, NULL, '2026-05-18 15:28:50'),
-(189, 56, 4, 'staff', 'progress_update', 'In Progress', 'Already has a blotter report as proof, please be present in the said date for hearing', NULL, NULL, '2026-05-18 17:09:09');
+(189, 56, 4, 'staff', 'progress_update', 'In Progress', 'Already has a blotter report as proof, please be present in the said date for hearing', NULL, NULL, '2026-05-18 17:09:09'),
+(190, 57, 2, 'complainant', 'submitted', 'Pending', 'Complaint submitted by complainant.', NULL, NULL, '2026-05-20 18:23:51'),
+(191, 57, 1, 'admin', 'assigned', 'In Progress', 'Complaint assigned to Arjay Rubio.', NULL, NULL, '2026-05-20 18:32:55'),
+(192, 57, 4, 'staff', 'blotter_report', 'In Progress', 'Barangay blotter / complaint report generated and attached.', NULL, NULL, '2026-05-20 23:12:29'),
+(193, 57, 2, 'complainant', 'blotter_signed', 'awaiting_complainant_signature', 'Complainant signed the barangay blotter / complaint report.', NULL, NULL, '2026-05-20 23:15:12'),
+(194, 57, 4, 'staff', 'blotter_submitted_to_admin', 'For Admin Review', 'Assigned staff submitted the signed blotter report to admin for review.', NULL, NULL, '2026-05-21 01:00:53'),
+(195, 57, 1, 'admin', 'blotter_approved', 'Resolved', 'Admin approved the barangay blotter / complaint report. Awaiting complainant confirmation.', NULL, NULL, '2026-05-21 01:10:44'),
+(196, 57, 2, 'complainant', 'resolution_reopened', 'In Progress', 'Complainant marked the complaint as not yet resolved. Reason: not satisfied (test sub rani)', NULL, NULL, '2026-05-21 01:50:07'),
+(197, 58, 2, 'complainant', 'submitted', 'Pending', 'Complaint submitted by complainant.', NULL, NULL, '2026-05-21 01:51:03'),
+(198, 58, 1, 'admin', 'assigned', 'In Progress', 'Complaint assigned to Arjay Rubio.', NULL, NULL, '2026-05-21 01:52:55'),
+(199, 58, 4, 'staff', 'blotter_report', 'In Progress', 'Barangay blotter / complaint report generated and attached.', NULL, NULL, '2026-05-21 06:22:05'),
+(200, 59, 2, 'complainant', 'submitted', 'Pending', 'Complaint submitted by complainant.', NULL, NULL, '2026-05-21 06:24:15'),
+(201, 59, 1, 'admin', 'assigned', 'In Progress', 'Complaint assigned to Arjay Rubio.', NULL, NULL, '2026-05-21 06:24:48'),
+(202, 59, 4, 'staff', 'blotter_report', 'In Progress', 'Barangay blotter / complaint report generated and attached.', NULL, NULL, '2026-05-21 06:27:28'),
+(203, 59, 2, 'complainant', 'blotter_signed', 'awaiting_complainant_signature', 'Complainant signed the barangay blotter / complaint report.', NULL, NULL, '2026-05-21 08:32:43'),
+(204, 59, 4, 'staff', 'blotter_submitted_to_admin', 'For Admin Review', 'Assigned staff submitted the signed blotter report to admin for review.', NULL, NULL, '2026-05-21 08:33:52'),
+(205, 59, 1, 'admin', 'blotter_approved', 'Resolved', 'Admin approved the barangay blotter / complaint report. Awaiting complainant confirmation.', NULL, NULL, '2026-05-21 08:34:42'),
+(206, 60, 2, 'complainant', 'submitted', 'Pending', 'Complaint submitted by complainant.', NULL, NULL, '2026-05-22 18:03:18'),
+(207, 60, 1, 'admin', 'assigned', 'In Progress', 'Complaint assigned to Arjay Rubio.', NULL, NULL, '2026-05-22 18:04:36'),
+(208, 60, 4, 'staff', 'blotter_report', 'In Progress', 'Barangay blotter / complaint report generated and attached.', NULL, NULL, '2026-05-22 18:06:31'),
+(209, 60, 2, 'complainant', 'blotter_signed', 'awaiting_complainant_signature', 'Complainant signed the barangay blotter / complaint report.', NULL, NULL, '2026-05-22 18:07:53'),
+(210, 60, 4, 'staff', 'blotter_submitted_to_admin', 'For Admin Review', 'Assigned staff submitted the signed blotter report to admin for review.', NULL, NULL, '2026-05-22 18:09:13'),
+(211, 60, 1, 'admin', 'blotter_approved', 'Resolved', 'Admin approved the barangay blotter / complaint report. Awaiting complainant confirmation.', NULL, NULL, '2026-05-22 18:10:15'),
+(212, 60, 2, 'complainant', 'resolution_confirmed', 'Resolved', 'Complainant confirmed that the complaint has been resolved.', NULL, NULL, '2026-05-22 18:12:11');
 
 -- --------------------------------------------------------
 
@@ -398,7 +463,24 @@ INSERT INTO `complaint_update_attachments` (`attachment_id`, `update_id`, `store
 (15, 185, 'uploads/signatures/1779092371_4_arjay_e_signature.jpg', 'Staff E-Signature - Arjay Rubio', 'jpg', 82906, '2026-05-18 15:25:40'),
 (16, 186, 'uploads/blotter_signatures/1779118017_56_2_rj_complainant_e_signature.jpg', 'Complainant E-Signature', 'jpg', 80385, '2026-05-18 15:26:57'),
 (17, 188, 'uploads/signatures/1779092799_1_admin_e_signature.jpg', 'Admin E-Signature', 'jpg', 83926, '2026-05-18 15:28:50'),
-(18, 188, 'uploads/complaint_proofs/blotter_56_4_1779117940.pdf', 'Barangay Blotter Report - CMP-20260518-00056.pdf', 'pdf', 301706, '2026-05-18 15:28:50');
+(18, 188, 'uploads/complaint_proofs/blotter_56_4_1779117940.pdf', 'Barangay Blotter Report - CMP-20260518-00056.pdf', 'pdf', 301706, '2026-05-18 15:28:50'),
+(19, 192, 'uploads/complaint_proofs/blotter_57_4_1779318749.pdf', 'Barangay Blotter Report - CMP-20260521-00057.pdf', 'pdf', 137112, '2026-05-20 23:12:29'),
+(20, 192, 'uploads/signatures/1779092371_4_arjay_e_signature.jpg', 'Staff E-Signature - Arjay Rubio', 'jpg', 82906, '2026-05-20 23:12:29'),
+(21, 193, 'uploads/blotter_signatures/1779318911_2_example-wagi_scan_clean.jpg', 'Complainant E-Signature', 'jpg', 44637, '2026-05-20 23:15:12'),
+(22, 195, 'uploads/signatures/1779325789_1_gab_signature_clean.jpg', 'Admin E-Signature', 'jpg', 39628, '2026-05-21 01:10:44'),
+(23, 195, 'uploads/complaint_proofs/blotter_57_4_1779318749.pdf', 'Barangay Blotter Report - CMP-20260521-00057.pdf', 'pdf', 219426, '2026-05-21 01:10:44'),
+(24, 199, 'uploads/complaint_proofs/blotter_58_4_1779344525.pdf', 'Barangay Blotter Report - CMP-20260521-00058.pdf', 'pdf', 97335, '2026-05-21 06:22:05'),
+(25, 199, 'uploads/signatures/1779092371_4_arjay_e_signature.jpg', 'Staff E-Signature - Arjay Rubio', 'jpg', 82906, '2026-05-21 06:22:05'),
+(26, 202, 'uploads/complaint_proofs/blotter_59_4_1779344848.pdf', 'Barangay Blotter Report - CMP-20260521-00059.pdf', 'pdf', 97308, '2026-05-21 06:27:28'),
+(27, 202, 'uploads/signatures/1779092371_4_arjay_e_signature.jpg', 'Staff E-Signature - Arjay Rubio', 'jpg', 82906, '2026-05-21 06:27:28'),
+(28, 203, 'uploads/blotter_signatures/1779352353_2_gab_signature_clean.jpg', 'Complainant E-Signature', 'jpg', 177200, '2026-05-21 08:32:43'),
+(29, 205, 'uploads/signatures/1779325789_1_gab_signature_clean.jpg', 'Admin E-Signature', 'jpg', 39628, '2026-05-21 08:34:42'),
+(30, 205, 'uploads/complaint_proofs/blotter_59_4_1779344848.pdf', 'Barangay Blotter Report - CMP-20260521-00059.pdf', 'pdf', 177155, '2026-05-21 08:34:42'),
+(31, 208, 'uploads/complaint_proofs/blotter_60_4_1779473191.pdf', 'Barangay Blotter Report - CMP-20260523-00060.pdf', 'pdf', 149141, '2026-05-22 18:06:31'),
+(32, 208, 'uploads/signatures/1779092371_4_arjay_e_signature.jpg', 'Staff E-Signature - Arjay Rubio', 'jpg', 82906, '2026-05-22 18:06:31'),
+(33, 209, 'uploads/blotter_signatures/1779473266_2_example-wagi_scan_clean.jpg', 'Complainant E-Signature', 'jpg', 44637, '2026-05-22 18:07:53'),
+(34, 211, 'uploads/signatures/1779325789_1_gab_signature_clean.jpg', 'Admin E-Signature', 'jpg', 39628, '2026-05-22 18:10:15'),
+(35, 211, 'uploads/complaint_proofs/blotter_60_4_1779473191.pdf', 'Barangay Blotter Report - CMP-20260523-00060.pdf', 'pdf', 277002, '2026-05-22 18:10:15');
 
 -- --------------------------------------------------------
 
@@ -940,7 +1022,298 @@ INSERT INTO `logs` (`log_id`, `user_id`, `action`, `log_time`) VALUES
 (497, 11, 'Logged in successfully', '2026-05-20 12:23:03'),
 (498, 11, 'Opened staff dashboard', '2026-05-20 12:23:03'),
 (499, 11, 'Viewed assigned complaints', '2026-05-20 12:23:07'),
-(500, 11, 'Opened staff dashboard', '2026-05-20 12:23:10');
+(500, 11, 'Opened staff dashboard', '2026-05-20 12:23:10'),
+(501, 1, 'Logged in successfully', '2026-05-20 17:59:17'),
+(502, 11, 'Logged in successfully', '2026-05-20 18:01:41'),
+(503, 11, 'Opened staff dashboard', '2026-05-20 18:01:41'),
+(504, 11, 'Viewed assigned complaints', '2026-05-20 18:01:43'),
+(505, 11, 'Viewed assigned complaints', '2026-05-20 18:01:57'),
+(506, 11, 'Viewed assigned complaints', '2026-05-20 18:02:00'),
+(507, 11, 'Opened staff dashboard', '2026-05-20 18:02:05'),
+(508, 11, 'Viewed assigned complaints', '2026-05-20 18:02:06'),
+(509, 11, 'Viewed assigned complaints', '2026-05-20 18:02:12'),
+(510, 11, 'Opened staff dashboard', '2026-05-20 18:02:14'),
+(511, 2, 'Logged in successfully', '2026-05-20 18:11:39'),
+(512, 4, 'Logged in successfully', '2026-05-20 18:12:38'),
+(513, 4, 'Opened staff dashboard', '2026-05-20 18:12:38'),
+(514, 4, 'Opened staff dashboard', '2026-05-20 18:12:54'),
+(515, 4, 'Viewed assigned complaints', '2026-05-20 18:12:54'),
+(516, 4, 'Viewed assigned complaints', '2026-05-20 18:13:20'),
+(517, 4, 'Viewed assigned complaints', '2026-05-20 18:13:24'),
+(518, 2, 'Logged in successfully', '2026-05-20 18:15:12'),
+(519, 1, 'Logged in successfully', '2026-05-20 18:15:29'),
+(520, 2, 'Updated profile information', '2026-05-20 18:21:13'),
+(521, 2, 'Updated profile information', '2026-05-20 18:21:37'),
+(522, 2, 'Created complaint CMP-20260521-00057', '2026-05-20 18:23:51'),
+(523, 1, 'Assigned staff to complaint ID 57', '2026-05-20 18:32:55'),
+(524, 4, 'Logged in successfully', '2026-05-20 18:37:53'),
+(525, 4, 'Opened staff dashboard', '2026-05-20 18:37:53'),
+(526, 4, 'Viewed assigned complaints', '2026-05-20 18:37:59'),
+(527, 4, 'Viewed assigned complaints', '2026-05-20 18:48:26'),
+(528, 4, 'Viewed assigned complaints', '2026-05-20 18:56:06'),
+(529, 4, 'Viewed assigned complaints', '2026-05-20 18:56:13'),
+(530, 4, 'Viewed assigned complaints', '2026-05-20 19:04:21'),
+(531, 4, 'Viewed assigned complaints', '2026-05-20 19:04:24'),
+(532, 4, 'Logged in successfully', '2026-05-20 23:08:18'),
+(533, 4, 'Opened staff dashboard', '2026-05-20 23:08:19'),
+(534, 4, 'Viewed assigned complaints', '2026-05-20 23:08:54'),
+(535, 4, 'Generated barangay blotter report for complaint ID 57', '2026-05-20 23:12:29'),
+(536, 4, 'Viewed assigned complaints', '2026-05-20 23:12:34'),
+(537, 4, 'Viewed assigned complaints', '2026-05-20 23:13:40'),
+(538, 4, 'Opened staff dashboard', '2026-05-20 23:14:21'),
+(539, 4, 'Viewed assigned complaints', '2026-05-20 23:14:27'),
+(540, 2, 'Logged in successfully', '2026-05-20 23:14:41'),
+(541, 4, 'Viewed assigned complaints', '2026-05-20 23:36:53'),
+(542, 4, 'Viewed assigned complaints', '2026-05-20 23:36:53'),
+(543, 4, 'Viewed assigned complaints', '2026-05-20 23:36:54'),
+(544, 4, 'Viewed assigned complaints', '2026-05-20 23:50:04'),
+(545, 4, 'Viewed assigned complaints', '2026-05-20 23:50:35'),
+(546, 4, 'Viewed assigned complaints', '2026-05-20 23:51:45'),
+(547, 4, 'Viewed assigned complaints', '2026-05-20 23:51:46'),
+(548, 11, 'Logged in successfully', '2026-05-20 23:51:56'),
+(549, 11, 'Opened staff dashboard', '2026-05-20 23:51:57'),
+(550, 11, 'Viewed assigned complaints', '2026-05-20 23:51:58'),
+(551, 11, 'Viewed assigned complaints', '2026-05-20 23:52:00'),
+(552, 11, 'Viewed assigned complaints', '2026-05-20 23:52:02'),
+(553, 4, 'Logged in successfully', '2026-05-20 23:52:15'),
+(554, 4, 'Opened staff dashboard', '2026-05-20 23:52:15'),
+(555, 4, 'Viewed assigned complaints', '2026-05-20 23:52:18'),
+(556, 4, 'Viewed assigned complaints', '2026-05-20 23:52:19'),
+(557, 4, 'Viewed assigned complaints', '2026-05-20 23:52:20'),
+(558, 4, 'Viewed assigned complaints', '2026-05-20 23:52:22'),
+(559, 4, 'Viewed assigned complaints', '2026-05-20 23:52:24'),
+(560, 4, 'Viewed assigned complaints', '2026-05-20 23:52:38'),
+(561, 4, 'Opened staff dashboard', '2026-05-20 23:52:39'),
+(562, 2, 'Logged in successfully', '2026-05-20 23:52:59'),
+(563, 1, 'Logged in successfully', '2026-05-20 23:59:11'),
+(564, 4, 'Logged in successfully', '2026-05-20 23:59:54'),
+(565, 4, 'Opened staff dashboard', '2026-05-20 23:59:54'),
+(566, 4, 'Viewed assigned complaints', '2026-05-21 00:00:28'),
+(567, 4, 'Viewed assigned complaints', '2026-05-21 00:01:54'),
+(568, 2, 'Logged in successfully', '2026-05-21 00:19:23'),
+(569, 2, 'Updated profile information', '2026-05-21 00:35:11'),
+(570, 4, 'Logged in successfully', '2026-05-21 00:35:38'),
+(571, 4, 'Opened staff dashboard', '2026-05-21 00:35:38'),
+(572, 4, 'Opened staff dashboard', '2026-05-21 00:36:01'),
+(573, 4, 'Viewed assigned complaints', '2026-05-21 00:36:02'),
+(574, 4, 'Updated profile information', '2026-05-21 00:36:33'),
+(575, 4, 'Opened staff dashboard', '2026-05-21 00:36:42'),
+(576, 4, 'Viewed assigned complaints', '2026-05-21 00:36:43'),
+(577, 4, 'Updated profile information', '2026-05-21 00:36:47'),
+(578, 2, 'Logged in successfully', '2026-05-21 00:40:48'),
+(579, 4, 'Logged in successfully', '2026-05-21 00:41:16'),
+(580, 4, 'Opened staff dashboard', '2026-05-21 00:41:16'),
+(581, 4, 'Viewed assigned complaints', '2026-05-21 00:41:27'),
+(582, 4, 'Viewed assigned complaints', '2026-05-21 00:54:02'),
+(583, 4, 'Viewed assigned complaints', '2026-05-21 00:54:03'),
+(584, 4, 'Viewed assigned complaints', '2026-05-21 00:54:04'),
+(585, 4, 'Viewed assigned complaints', '2026-05-21 00:54:05'),
+(586, 4, 'Opened staff dashboard', '2026-05-21 00:54:48'),
+(587, 4, 'Viewed assigned complaints', '2026-05-21 00:55:14'),
+(588, 4, 'Viewed assigned complaints', '2026-05-21 00:55:23'),
+(589, 4, 'Viewed assigned complaints', '2026-05-21 01:00:52'),
+(590, 4, 'Viewed assigned complaints', '2026-05-21 01:00:58'),
+(591, 1, 'Logged in successfully', '2026-05-21 01:01:15'),
+(592, 1, 'Updated profile information', '2026-05-21 01:01:42'),
+(593, 1, 'Updated profile information', '2026-05-21 01:09:56'),
+(594, 1, 'Approved blotter report ID 5 for complaint ID 57', '2026-05-21 01:10:44'),
+(595, 2, 'Logged in successfully', '2026-05-21 01:48:40'),
+(596, 2, 'Reopened complaint ID 57 with feedback: not satisfied (test sub rani)', '2026-05-21 01:50:07'),
+(597, 2, 'Created complaint CMP-20260521-00058', '2026-05-21 01:51:03'),
+(598, 1, 'Logged in successfully', '2026-05-21 01:52:30'),
+(599, 1, 'Assigned staff to complaint ID 58', '2026-05-21 01:52:55'),
+(600, 4, 'Logged in successfully', '2026-05-21 01:53:40'),
+(601, 4, 'Opened staff dashboard', '2026-05-21 01:53:40'),
+(602, 4, 'Viewed assigned complaints', '2026-05-21 01:53:56'),
+(603, 4, 'Viewed assigned complaints', '2026-05-21 02:06:55'),
+(604, 4, 'Viewed assigned complaints', '2026-05-21 02:06:57'),
+(605, 4, 'Viewed assigned complaints', '2026-05-21 02:06:58'),
+(606, 4, 'Viewed assigned complaints', '2026-05-21 02:06:58'),
+(607, 4, 'Viewed assigned complaints', '2026-05-21 02:06:58'),
+(608, 4, 'Viewed assigned complaints', '2026-05-21 02:07:06'),
+(609, 4, 'Viewed assigned complaints', '2026-05-21 02:15:06'),
+(610, 4, 'Viewed assigned complaints', '2026-05-21 02:15:09'),
+(611, 4, 'Viewed assigned complaints', '2026-05-21 02:15:10'),
+(612, 4, 'Viewed assigned complaints', '2026-05-21 02:15:10'),
+(613, 4, 'Viewed assigned complaints', '2026-05-21 02:15:10'),
+(614, 4, 'Viewed assigned complaints', '2026-05-21 02:15:12'),
+(615, 4, 'Generated barangay blotter report for complaint ID 58', '2026-05-21 06:22:05'),
+(616, 4, 'Viewed assigned complaints', '2026-05-21 06:22:11'),
+(617, 4, 'Viewed assigned complaints', '2026-05-21 06:22:53'),
+(618, 4, 'Viewed assigned complaints', '2026-05-21 06:23:03'),
+(619, 4, 'Opened staff dashboard', '2026-05-21 06:23:07'),
+(620, 2, 'Logged in successfully', '2026-05-21 06:23:36'),
+(621, 2, 'Created complaint CMP-20260521-00059', '2026-05-21 06:24:15'),
+(622, 1, 'Logged in successfully', '2026-05-21 06:24:30'),
+(623, 1, 'Assigned staff to complaint ID 59', '2026-05-21 06:24:48'),
+(624, 4, 'Logged in successfully', '2026-05-21 06:26:13'),
+(625, 4, 'Opened staff dashboard', '2026-05-21 06:26:14'),
+(626, 4, 'Viewed assigned complaints', '2026-05-21 06:26:24'),
+(627, 4, 'Generated barangay blotter report for complaint ID 59', '2026-05-21 06:27:28'),
+(628, 4, 'Viewed assigned complaints', '2026-05-21 06:27:33'),
+(629, 4, 'Viewed assigned complaints', '2026-05-21 06:28:10'),
+(630, 4, 'Viewed assigned complaints', '2026-05-21 06:29:15'),
+(631, 4, 'Logged in successfully', '2026-05-21 08:29:16'),
+(632, 4, 'Opened staff dashboard', '2026-05-21 08:29:16'),
+(633, 4, 'Viewed assigned complaints', '2026-05-21 08:30:16'),
+(634, 4, 'Viewed assigned complaints', '2026-05-21 08:30:38'),
+(635, 4, 'Viewed assigned complaints', '2026-05-21 08:30:40'),
+(636, 2, 'Logged in successfully', '2026-05-21 08:31:00'),
+(637, 4, 'Logged in successfully', '2026-05-21 08:33:30'),
+(638, 4, 'Opened staff dashboard', '2026-05-21 08:33:30'),
+(639, 4, 'Viewed assigned complaints', '2026-05-21 08:33:39'),
+(640, 4, 'Viewed assigned complaints', '2026-05-21 08:33:48'),
+(641, 4, 'Viewed assigned complaints', '2026-05-21 08:33:52'),
+(642, 1, 'Logged in successfully', '2026-05-21 08:34:10'),
+(643, 1, 'Approved blotter report ID 7 for complaint ID 59', '2026-05-21 08:34:42'),
+(644, 2, 'Logged in successfully', '2026-05-21 08:35:19'),
+(645, 2, 'Logged in successfully', '2026-05-21 11:02:44'),
+(646, 4, 'Logged in successfully', '2026-05-21 11:04:37'),
+(647, 4, 'Opened staff dashboard', '2026-05-21 11:04:37'),
+(648, 4, 'Viewed assigned complaints', '2026-05-21 11:04:51'),
+(649, 1, 'Logged in successfully', '2026-05-21 11:05:37'),
+(650, 4, 'Viewed assigned complaints', '2026-05-21 11:10:43'),
+(651, 4, 'Viewed assigned complaints', '2026-05-21 11:10:54'),
+(652, 4, 'Viewed assigned complaints', '2026-05-21 11:10:59'),
+(653, 4, 'Generated printable complaint record for complaint ID 1', '2026-05-21 11:11:05'),
+(654, 4, 'Viewed assigned complaints', '2026-05-21 11:13:59'),
+(655, 4, 'Viewed assigned complaints', '2026-05-21 11:14:02'),
+(656, 4, 'Viewed assigned complaints', '2026-05-21 11:31:23'),
+(657, 4, 'Viewed assigned complaints', '2026-05-21 11:31:26'),
+(658, 4, 'Viewed assigned complaints', '2026-05-21 11:31:29'),
+(659, 4, 'Viewed assigned complaints', '2026-05-21 11:49:26'),
+(660, 4, 'Viewed assigned complaints', '2026-05-21 11:49:36'),
+(661, 4, 'Viewed assigned complaints', '2026-05-21 11:49:36'),
+(662, 4, 'Viewed assigned complaints', '2026-05-21 12:31:40'),
+(663, 4, 'Viewed assigned complaints', '2026-05-21 12:31:40'),
+(664, 4, 'Viewed assigned complaints', '2026-05-21 12:31:44'),
+(665, 4, 'Viewed assigned complaints', '2026-05-21 12:31:46'),
+(666, 4, 'Viewed assigned complaints', '2026-05-21 12:31:48'),
+(667, 4, 'Viewed assigned complaints', '2026-05-21 12:33:57'),
+(668, 4, 'Viewed assigned complaints', '2026-05-21 12:33:59'),
+(669, 4, 'Viewed assigned complaints', '2026-05-21 12:34:04'),
+(670, 4, 'Logged in successfully', '2026-05-21 22:26:14'),
+(671, 4, 'Opened staff dashboard', '2026-05-21 22:26:14'),
+(672, 4, 'Viewed assigned complaints', '2026-05-21 22:26:15'),
+(673, 4, 'Viewed assigned complaints', '2026-05-21 22:26:23'),
+(674, 4, 'Viewed assigned complaints', '2026-05-21 22:38:50'),
+(675, 4, 'Viewed assigned complaints', '2026-05-21 22:38:53'),
+(676, 4, 'Viewed assigned complaints', '2026-05-21 22:38:54'),
+(677, 4, 'Viewed assigned complaints', '2026-05-21 22:40:32'),
+(678, 4, 'Viewed assigned complaints', '2026-05-21 22:40:35'),
+(679, 4, 'Viewed assigned complaints', '2026-05-21 22:43:23'),
+(680, 4, 'Logged in successfully', '2026-05-22 16:00:26'),
+(681, 4, 'Opened staff dashboard', '2026-05-22 16:00:26'),
+(682, 4, 'Viewed assigned complaints', '2026-05-22 16:00:28'),
+(683, 4, 'Viewed assigned complaints', '2026-05-22 16:09:19'),
+(684, 4, 'Viewed assigned complaints', '2026-05-22 16:09:46'),
+(685, 4, 'Viewed assigned complaints', '2026-05-22 16:42:35'),
+(686, 4, 'Viewed assigned complaints', '2026-05-22 16:42:41'),
+(687, 4, 'Viewed assigned complaints', '2026-05-22 16:42:46'),
+(688, 4, 'Viewed assigned complaints', '2026-05-22 16:42:48'),
+(689, 4, 'Viewed assigned complaints', '2026-05-22 16:42:50'),
+(690, 4, 'Viewed assigned complaints', '2026-05-22 16:42:52'),
+(691, 4, 'Viewed assigned complaints', '2026-05-22 16:43:01'),
+(692, 4, 'Viewed assigned complaints', '2026-05-22 16:43:10'),
+(693, 4, 'Viewed assigned complaints', '2026-05-22 16:43:11'),
+(694, 4, 'Viewed assigned complaints', '2026-05-22 16:43:12'),
+(695, 4, 'Viewed assigned complaints', '2026-05-22 16:43:14'),
+(696, 4, 'Viewed assigned complaints', '2026-05-22 16:43:47'),
+(697, 4, 'Viewed assigned complaints', '2026-05-22 16:43:49'),
+(698, 4, 'Viewed assigned complaints', '2026-05-22 16:43:56'),
+(699, 4, 'Viewed assigned complaints', '2026-05-22 16:58:42'),
+(700, 4, 'Viewed assigned complaints', '2026-05-22 16:58:45'),
+(701, 4, 'Viewed assigned complaints', '2026-05-22 16:58:46'),
+(702, 4, 'Viewed assigned complaints', '2026-05-22 16:59:08'),
+(703, 4, 'Viewed assigned complaints', '2026-05-22 16:59:09'),
+(704, 4, 'Viewed assigned complaints', '2026-05-22 16:59:11'),
+(705, 4, 'Viewed assigned complaints', '2026-05-22 16:59:11'),
+(706, 4, 'Viewed assigned complaints', '2026-05-22 17:41:19'),
+(707, 4, 'Viewed assigned complaints', '2026-05-22 17:44:09'),
+(708, 4, 'Viewed assigned complaints', '2026-05-22 17:44:35'),
+(709, 4, 'Viewed assigned complaints', '2026-05-22 17:44:53'),
+(710, 4, 'Viewed assigned complaints', '2026-05-22 17:45:00'),
+(711, 4, 'Viewed assigned complaints', '2026-05-22 17:57:08'),
+(712, 27, 'Logged in successfully', '2026-05-22 18:00:10'),
+(713, 2, 'Logged in successfully', '2026-05-22 18:00:41'),
+(714, 27, 'Logged in successfully', '2026-05-22 18:00:57'),
+(715, 27, 'Updated profile information', '2026-05-22 18:02:24'),
+(716, 2, 'Logged in successfully', '2026-05-22 18:03:06'),
+(717, 2, 'Created complaint CMP-20260523-00060', '2026-05-22 18:03:18'),
+(718, 1, 'Logged in successfully', '2026-05-22 18:04:09'),
+(719, 1, 'Assigned staff to complaint ID 60', '2026-05-22 18:04:36'),
+(720, 4, 'Logged in successfully', '2026-05-22 18:05:06'),
+(721, 4, 'Opened staff dashboard', '2026-05-22 18:05:06'),
+(722, 4, 'Viewed assigned complaints', '2026-05-22 18:05:22'),
+(723, 4, 'Generated barangay blotter report for complaint ID 60', '2026-05-22 18:06:31'),
+(724, 4, 'Viewed assigned complaints', '2026-05-22 18:06:35'),
+(725, 2, 'Logged in successfully', '2026-05-22 18:07:10'),
+(726, 4, 'Logged in successfully', '2026-05-22 18:08:12'),
+(727, 4, 'Opened staff dashboard', '2026-05-22 18:08:12'),
+(728, 4, 'Viewed assigned complaints', '2026-05-22 18:08:34'),
+(729, 4, 'Viewed assigned complaints', '2026-05-22 18:09:09'),
+(730, 4, 'Viewed assigned complaints', '2026-05-22 18:09:17'),
+(731, 1, 'Logged in successfully', '2026-05-22 18:09:49'),
+(732, 1, 'Approved blotter report ID 8 for complaint ID 60', '2026-05-22 18:10:15'),
+(733, 2, 'Logged in successfully', '2026-05-22 18:11:41'),
+(734, 2, 'Confirmed resolution for complaint ID 60', '2026-05-22 18:12:11'),
+(735, 1, 'Logged in successfully', '2026-05-23 06:34:21'),
+(736, 1, 'Logged in successfully', '2026-05-23 10:30:00'),
+(737, 27, 'Logged in successfully', '2026-05-23 11:06:46'),
+(738, 27, 'Logged in successfully', '2026-05-23 23:39:54'),
+(739, 27, 'Logged in successfully', '2026-05-24 00:23:25');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `notification_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `subject` varchar(180) NOT NULL,
+  `message` text NOT NULL,
+  `link` varchar(255) DEFAULT NULL,
+  `read_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`notification_id`, `user_id`, `subject`, `message`, `link`, `read_at`, `created_at`) VALUES
+(1, 1, 'New Complaint Submitted', 'A complainant submitted a new complaint with tracking number CMP-20260521-00057.', '../admin/manage_complaints.php', '2026-05-21 02:26:50', '2026-05-20 18:23:51'),
+(2, 2, 'Staff Assigned', 'The Punong Barangay has assigned Arjay Rubio to handle your complaint.', '../complainant/my_complaints.php', '2026-05-21 02:34:47', '2026-05-20 18:33:01'),
+(3, 4, 'Complaint Assigned to You', 'A complaint has been assigned to you. Please review the details and add progress updates.', '../staff/view_complaints.php', '2026-05-21 02:37:58', '2026-05-20 18:33:05'),
+(4, 2, 'Blotter Signature Needed', 'A barangay blotter report was generated. Please attach your cleaned JPG or PNG e-signature so the staff can submit it for admin approval.', '../complainant/my_complaints.php?status=In+Progress#complaint-57', '2026-05-21 09:50:32', '2026-05-20 23:12:34'),
+(5, 4, 'Complainant Signed Blotter', 'The complainant uploaded their e-signature. Please review the blotter report and submit it to admin.', '../staff/view_complaints.php?status=In+Progress', '2026-05-21 09:53:46', '2026-05-20 23:15:17'),
+(6, 1, 'Blotter Awaiting Approval', 'A signed barangay blotter report has been submitted for admin review.', '../admin/manage_complaints.php?status=In+Progress', '2026-05-21 09:52:38', '2026-05-21 01:00:58'),
+(7, 2, 'Blotter Approved', 'Admin approved the barangay blotter report. Please review your complaint and confirm if it is resolved.', '../complainant/my_complaints.php?status=Awaiting+Confirmation#complaint-57', '2026-05-21 09:50:18', '2026-05-21 01:10:48'),
+(8, 4, 'Blotter Approved', 'Admin approved the barangay blotter report. The approved PDF is visible in the timeline.', '../staff/view_complaints.php?status=Resolved', '2026-05-21 09:53:47', '2026-05-21 01:10:53'),
+(9, 4, 'Complaint Reopened', 'The complainant marked the complaint as not yet resolved. Reason: not satisfied (test sub rani)', '../staff/view_complaints.php?status=Reopened', '2026-05-21 14:26:23', '2026-05-21 01:50:12'),
+(10, 1, 'New Complaint Submitted', 'A complainant submitted a new complaint with tracking number CMP-20260521-00058.', '../admin/manage_complaints.php?status=Pending&search=CMP-20260521-00058', '2026-05-21 09:52:42', '2026-05-21 01:51:03'),
+(11, 2, 'Staff Assigned', 'The Punong Barangay has assigned Arjay Rubio to handle your complaint.', '../complainant/my_complaints.php?status=In+Progress#complaint-58', '2026-05-21 14:24:03', '2026-05-21 01:52:59'),
+(12, 4, 'Complaint Assigned to You', 'A complaint has been assigned to you. Please review the details and add progress updates.', '../staff/view_complaints.php?status=In+Progress', '2026-05-21 14:26:23', '2026-05-21 01:53:04'),
+(13, 2, 'Blotter Signature Needed', 'A barangay blotter report was generated. Please attach your cleaned JPG or PNG e-signature so the staff can submit it for admin approval.', '../complainant/my_complaints.php?status=In+Progress#complaint-58', '2026-05-21 14:24:03', '2026-05-21 06:22:11'),
+(14, 1, 'New Complaint Submitted', 'A complainant submitted a new complaint with tracking number CMP-20260521-00059.', '../admin/manage_complaints.php?status=Pending&search=CMP-20260521-00059', '2026-05-21 14:25:50', '2026-05-21 06:24:15'),
+(15, 2, 'Staff Assigned', 'The Punong Barangay has assigned Arjay Rubio to handle your complaint.', '../complainant/my_complaints.php?status=In+Progress#complaint-59', '2026-05-21 19:02:51', '2026-05-21 06:24:53'),
+(16, 4, 'Complaint Assigned to You', 'A complaint has been assigned to you. Please review the details and add progress updates.', '../staff/view_complaints.php?status=In+Progress', '2026-05-21 14:26:23', '2026-05-21 06:24:58'),
+(17, 2, 'Blotter Signature Needed', 'A barangay blotter report was generated. Please attach your cleaned JPG or PNG e-signature so the staff can submit it for admin approval.', '../complainant/my_complaints.php?status=In+Progress#complaint-59', '2026-05-21 19:02:51', '2026-05-21 06:27:33'),
+(18, 4, 'Complainant Signed Blotter', 'The complainant uploaded their e-signature. Please review the blotter report and submit it to admin.', '../staff/view_complaints.php?status=In+Progress', '2026-05-21 16:33:57', '2026-05-21 08:32:43'),
+(19, 1, 'Blotter Awaiting Approval', 'A signed barangay blotter report has been submitted for admin review.', '../admin/manage_complaints.php?status=In+Progress', '2026-05-21 16:34:49', '2026-05-21 08:33:52'),
+(20, 2, 'Blotter Approved', 'Admin approved the barangay blotter report. Please review your complaint and confirm if it is resolved.', '../complainant/my_complaints.php?status=Awaiting+Confirmation#complaint-59', '2026-05-21 19:02:51', '2026-05-21 08:34:42'),
+(21, 4, 'Blotter Approved', 'Admin approved the barangay blotter report. The approved PDF is visible in the timeline.', '../staff/view_complaints.php?status=Resolved', '2026-05-21 19:04:45', '2026-05-21 08:34:42'),
+(22, 1, 'New Complaint Submitted', 'A complainant submitted a new complaint with tracking number CMP-20260523-00060.', '../admin/manage_complaints.php?status=Pending&search=CMP-20260523-00060', NULL, '2026-05-22 18:03:18'),
+(23, 2, 'Staff Assigned', 'The Punong Barangay has assigned Arjay Rubio to handle your complaint.', '../complainant/my_complaints.php?status=In+Progress#complaint-60', NULL, '2026-05-22 18:04:41'),
+(24, 4, 'Complaint Assigned to You', 'A complaint has been assigned to you. Please review the details and add progress updates.', '../staff/view_complaints.php?status=In+Progress', NULL, '2026-05-22 18:04:45'),
+(25, 2, 'Blotter Signature Needed', 'A barangay blotter report was generated. Please attach your cleaned JPG or PNG e-signature so the staff can submit it for admin approval.', '../complainant/my_complaints.php?status=In+Progress#complaint-60', NULL, '2026-05-22 18:06:35'),
+(26, 4, 'Complainant Signed Blotter', 'The complainant uploaded their e-signature. Please review the blotter report and submit it to admin.', '../staff/view_complaints.php?status=In+Progress', NULL, '2026-05-22 18:07:57'),
+(27, 1, 'Blotter Awaiting Approval', 'A signed barangay blotter report has been submitted for admin review.', '../admin/manage_complaints.php?status=In+Progress', NULL, '2026-05-22 18:09:17'),
+(28, 2, 'Blotter Approved', 'Admin approved the barangay blotter report. Please review your complaint and confirm if it is resolved.', '../complainant/my_complaints.php?status=Awaiting+Confirmation#complaint-60', NULL, '2026-05-22 18:10:20'),
+(29, 4, 'Blotter Approved', 'Admin approved the barangay blotter report. The approved PDF is visible in the timeline.', '../staff/view_complaints.php?status=Resolved', NULL, '2026-05-22 18:10:24'),
+(30, 4, 'Resolution Confirmed', 'The complainant confirmed that the complaint has been resolved.', '../staff/view_complaints.php?status=Resolved', NULL, '2026-05-22 18:12:16');
 
 -- --------------------------------------------------------
 
@@ -1194,75 +1567,96 @@ CREATE TABLE `user_profiles` (
   `profile_id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
   `address` varchar(255) DEFAULT NULL,
+  `purok` tinyint(2) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
+  `birthdate` date DEFAULT NULL,
   `age` int(3) DEFAULT NULL,
   `gender` varchar(50) DEFAULT NULL,
   `civil_status` varchar(50) DEFAULT NULL,
+  `name_suffix` varchar(20) DEFAULT NULL,
   `about` text DEFAULT NULL,
   `profile_image` varchar(255) DEFAULT NULL,
-  `signature_image` varchar(255) DEFAULT NULL
+  `signature_image` varchar(255) DEFAULT NULL,
+  `valid_id_image` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user_profiles`
 --
 
-INSERT INTO `user_profiles` (`profile_id`, `user_id`, `address`, `phone`, `age`, `gender`, `civil_status`, `about`, `profile_image`, `signature_image`) VALUES
-(1, 1, 'Aguada, Recto St. Ozamiz City', '9754629572', 44, 'Male', 'Married', 'kapitan 3 straight wins', '457481135_1600428444152250_4082727828674291578_n-ai-brush-removebg-b6mkcqom.png', '1779092799_1_admin_e_signature.jpg'),
-(2, 2, 'labuyo', '0985736475', 23, 'Male', 'Single', 'Gwapo', 'aceWnoChain.jpg', NULL),
-(3, 3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(4, 4, 'Aguada, Recto St. Ozamiz City', '9754629572', NULL, '', '', 'Third year college student at Northwestern Mindanao State College of Science and Technology.', '1777221448_developer.png', '1779092371_4_arjay_e_signature.jpg'),
-(5, 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(6, 6, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(7, 7, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(9, 9, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(11, 11, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000011', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(12, 12, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000012', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(13, 13, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000013', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(14, 14, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000014', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(15, 15, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000015', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(16, 16, 'Purok 3, Barangay Aguada, Ozamiz City', '09170000016', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(17, 17, 'Purok 4, Barangay Aguada, Ozamiz City', '09170000017', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(18, 18, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000018', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(19, 19, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000019', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(20, 20, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000020', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(21, 21, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000021', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(22, 22, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000022', NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL),
-(23, 23, 'Purok 3, Barangay Aguada, Ozamiz City', '09170000023', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(24, 24, 'Purok 4, Barangay Aguada, Ozamiz City', '09170000024', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(25, 25, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000025', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(26, 26, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000026', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(27, 27, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000027', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(28, 28, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000028', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(29, 29, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000029', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(30, 30, 'Purok 3, Barangay Aguada, Ozamiz City', '09170000030', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(31, 31, 'Purok 4, Barangay Aguada, Ozamiz City', '09170000031', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(32, 32, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000032', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(33, 33, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000033', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(34, 34, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000034', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(35, 35, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000035', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(36, 36, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000036', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(37, 37, 'Purok 3, Barangay Aguada, Ozamiz City', '09170000037', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(38, 38, 'Purok 4, Barangay Aguada, Ozamiz City', '09170000038', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(39, 39, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000039', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(40, 40, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000040', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(41, 41, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000041', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(42, 42, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000042', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(43, 43, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000043', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(44, 44, 'Purok 3, Barangay Aguada, Ozamiz City', '09170000044', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(45, 45, 'Purok 4, Barangay Aguada, Ozamiz City', '09170000045', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(46, 46, 'Purok 5, Barangay Aguada, Ozamiz City', '09170000046', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(47, 47, 'Purok 6, Barangay Aguada, Ozamiz City', '09170000047', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(48, 48, 'Purok 7, Barangay Aguada, Ozamiz City', '09170000048', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(49, 49, 'Purok 1, Barangay Aguada, Ozamiz City', '09170000049', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(50, 50, 'Purok 2, Barangay Aguada, Ozamiz City', '09170000050', NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL),
-(51, 51, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO `user_profiles` (`profile_id`, `user_id`, `address`, `purok`, `phone`, `birthdate`, `age`, `gender`, `civil_status`, `name_suffix`, `about`, `profile_image`, `signature_image`, `valid_id_image`) VALUES
+(1, 1, 'Aguada, Recto St. Ozamiz City', 3, '09676767676', NULL, 44, 'Male', 'Married', '', 'kapitan 3 straight wins', '457481135_1600428444152250_4082727828674291578_n-ai-brush-removebg-b6mkcqom.png', '1779325789_1_gab_signature_clean.jpg', '1779325302_1_Sample_ID.png'),
+(2, 2, 'labuyo', 3, '09785353563', NULL, 23, 'Male', 'Single', 'Jr.', 'Gwapo', 'aceWnoChain.jpg', NULL, '1779301273_2_Sample_ID.png'),
+(3, 3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(4, 4, 'Aguada, Recto St. Ozamiz City', 1, '09970707070', NULL, 23, 'Male', 'Single', '', 'Third year college student at Northwestern Mindanao State College of Science and Technology.', '1777221448_developer.png', '1779092371_4_arjay_e_signature.jpg', '1779323793_4_Sample_ID.png'),
+(5, 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(6, 6, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(7, 7, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(9, 9, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(11, 11, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000011', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(12, 12, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000012', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(13, 13, 'Purok 7, Barangay Aguada, Ozamiz City', NULL, '09170000013', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(14, 14, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000014', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(15, 15, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000015', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(16, 16, 'Purok 3, Barangay Aguada, Ozamiz City', NULL, '09170000016', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(17, 17, 'Purok 4, Barangay Aguada, Ozamiz City', NULL, '09170000017', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(18, 18, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000018', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(19, 19, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000019', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(20, 20, 'Purok 7, Barangay Aguada, Ozamiz City', NULL, '09170000020', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(21, 21, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000021', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(22, 22, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000022', NULL, NULL, NULL, NULL, NULL, 'Staff demo account added to cloned checking database.', NULL, NULL, NULL),
+(23, 23, 'Purok 3, Barangay Aguada, Ozamiz City', NULL, '09170000023', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(24, 24, 'Purok 4, Barangay Aguada, Ozamiz City', NULL, '09170000024', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(25, 25, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000025', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(26, 26, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000026', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(27, 27, 'Purok 7, Barangay Aguada, Ozamiz City', 5, '09170000027', '2005-04-11', 21, 'Male', 'Single', '', 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(28, 28, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000028', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(29, 29, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000029', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(30, 30, 'Purok 3, Barangay Aguada, Ozamiz City', NULL, '09170000030', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(31, 31, 'Purok 4, Barangay Aguada, Ozamiz City', NULL, '09170000031', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(32, 32, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000032', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(33, 33, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000033', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(34, 34, 'Purok 7, Barangay Aguada, Ozamiz City', NULL, '09170000034', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(35, 35, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000035', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(36, 36, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000036', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(37, 37, 'Purok 3, Barangay Aguada, Ozamiz City', NULL, '09170000037', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(38, 38, 'Purok 4, Barangay Aguada, Ozamiz City', NULL, '09170000038', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(39, 39, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000039', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(40, 40, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000040', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(41, 41, 'Purok 7, Barangay Aguada, Ozamiz City', NULL, '09170000041', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(42, 42, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000042', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(43, 43, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000043', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(44, 44, 'Purok 3, Barangay Aguada, Ozamiz City', NULL, '09170000044', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(45, 45, 'Purok 4, Barangay Aguada, Ozamiz City', NULL, '09170000045', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(46, 46, 'Purok 5, Barangay Aguada, Ozamiz City', NULL, '09170000046', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(47, 47, 'Purok 6, Barangay Aguada, Ozamiz City', NULL, '09170000047', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(48, 48, 'Purok 7, Barangay Aguada, Ozamiz City', NULL, '09170000048', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(49, 49, 'Purok 1, Barangay Aguada, Ozamiz City', NULL, '09170000049', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(50, 50, 'Purok 2, Barangay Aguada, Ozamiz City', NULL, '09170000050', NULL, NULL, NULL, NULL, NULL, 'Complainant demo account added to cloned checking database.', NULL, NULL, NULL),
+(51, 51, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `admin_action_requests`
+--
+ALTER TABLE `admin_action_requests`
+  ADD PRIMARY KEY (`request_id`),
+  ADD KEY `requested_by` (`requested_by`),
+  ADD KEY `target_user_id` (`target_user_id`),
+  ADD KEY `status` (`status`);
+
+--
+-- Indexes for table `announcements`
+--
+ALTER TABLE `announcements`
+  ADD PRIMARY KEY (`announcement_id`),
+  ADD KEY `created_by` (`created_by`),
+  ADD KEY `recipient_role` (`recipient_role`);
 
 --
 -- Indexes for table `appointments`
@@ -1320,6 +1714,14 @@ ALTER TABLE `logs`
   ADD KEY `user_id` (`user_id`);
 
 --
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`notification_id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `read_at` (`read_at`);
+
+--
 -- Indexes for table `password_resets`
 --
 ALTER TABLE `password_resets`
@@ -1359,6 +1761,18 @@ ALTER TABLE `user_profiles`
 --
 
 --
+-- AUTO_INCREMENT for table `admin_action_requests`
+--
+ALTER TABLE `admin_action_requests`
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `announcements`
+--
+ALTER TABLE `announcements`
+  MODIFY `announcement_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `appointments`
 --
 ALTER TABLE `appointments`
@@ -1368,25 +1782,25 @@ ALTER TABLE `appointments`
 -- AUTO_INCREMENT for table `blotter_reports`
 --
 ALTER TABLE `blotter_reports`
-  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `complaints`
 --
 ALTER TABLE `complaints`
-  MODIFY `complaint_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=57;
+  MODIFY `complaint_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
 -- AUTO_INCREMENT for table `complaint_updates`
 --
 ALTER TABLE `complaint_updates`
-  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=190;
+  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=213;
 
 --
 -- AUTO_INCREMENT for table `complaint_update_attachments`
 --
 ALTER TABLE `complaint_update_attachments`
-  MODIFY `attachment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `attachment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `developer_profile`
@@ -1398,7 +1812,13 @@ ALTER TABLE `developer_profile`
 -- AUTO_INCREMENT for table `logs`
 --
 ALTER TABLE `logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=501;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=740;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT for table `password_resets`

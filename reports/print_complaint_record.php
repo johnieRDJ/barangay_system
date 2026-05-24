@@ -38,6 +38,7 @@ $complaint = $complaint_id > 0
             complainant.lastname AS complainant_lastname,
             complainant.email AS complainant_email,
             complainant_profile.address AS complainant_address,
+            complainant_profile.purok AS complainant_purok,
             complainant_profile.phone AS complainant_phone,
             staff.firstname AS staff_firstname,
             staff.lastname AS staff_lastname,
@@ -81,7 +82,7 @@ $preparedBy = db_select_one($conn,
  [$user_id]);
 
 $preparedByName = $preparedBy ? trim($preparedBy['firstname'] . ' ' . $preparedBy['lastname']) : ucfirst($role);
-$preparedSignature = paper_pdf_jpeg_path(!empty($preparedBy['signature_image']) ? 'uploads/signatures/' . $preparedBy['signature_image'] : null);
+$preparedSignature = paper_pdf_jpeg_path(!empty($preparedBy['signature_image']) ? 'uploads/signatures/' . $preparedBy['signature_image'] : null, true);
 $complainantName = trim($complaint['complainant_firstname'] . ' ' . $complaint['complainant_lastname']);
 $staffName = trim(($complaint['staff_firstname'] ?? '') . ' ' . ($complaint['staff_lastname'] ?? ''));
 
@@ -100,6 +101,7 @@ $pdf->labelValue('Full Name', $complainantName);
 $pdf->labelValue('Email', $complaint['complainant_email']);
 $pdf->labelValue('Phone', $complaint['complainant_phone'] ?: 'N/A');
 $pdf->labelValue('Address', $complaint['complainant_address'] ?: 'N/A');
+$pdf->labelValue('Purok', !empty($complaint['complainant_purok']) ? 'Purok ' . $complaint['complainant_purok'] : 'N/A');
 $pdf->blank();
 
 $pdf->line('II. COMPLAINT DETAILS');

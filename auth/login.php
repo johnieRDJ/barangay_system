@@ -24,6 +24,7 @@ if(isset($_SESSION['user_id'])){
 }
 
 $login_error = '';
+$email = '';
 
 if(isset($_POST['login'])){
     $email = trim($_POST['email'] ?? '');
@@ -43,9 +44,28 @@ if(isset($_POST['login'])){
         [$email]
     );
 
-    if($user && password_verify($password, $user['password'])){
+    if(!$user){
+        unset($_SESSION['temp_user']);
+        $login_error = 'That account does not exist in the system. Please register first.';
+    } elseif(password_verify($password, $user['password'])){
         if(intval($user['email_verified']) !== 1){
-            $login_error = 'Please verify your email first.';
+            $token = bin2hex(random_bytes(16));
+            $userId = intval($user['user_id']);
+
+            db_execute(
+                $conn,
+                "UPDATE user_auth
+                 SET verification_token=?
+                 WHERE user_id=?",
+                'si',
+                [$token, $userId]
+            );
+
+            $verificationLink = rtrim(APP_URL, '/') . "/auth/verify_email.php?token=" . urlencode($token);
+            $fullname = trim(($user['firstname'] ?? '') . ' ' . ($user['lastname'] ?? ''));
+            sendRegistrationVerificationEmail($user['email'], $fullname, $user['role'], $verificationLink);
+
+            $login_error = 'Your email is not verified yet. We sent a new verification email to your registered email address.';
         } elseif($user['role'] !== 'superadmin' && $user['account_status'] !== 'approved'){
             $login_error = 'Account not approved by admin yet.';
         } else {
@@ -110,7 +130,7 @@ if(isset($_POST['login'])){
         }
     } else {
         unset($_SESSION['temp_user']);
-        $login_error = 'Invalid email or password';
+        $login_error = 'Invalid password. Please try again.';
 
         if($user){
             $userId = intval($user['user_id']);
@@ -180,18 +200,22 @@ if(isset($_POST['login'])){
         <p style="color:#b91c1c; font-weight:600;"><?php echo htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8'); ?></p>
     <?php endif; ?>
 
-    <form method="POST">
-        <input type="email" name="email" placeholder="Email" required>
+    <form method="POST" action="login.php">
+        <input type="email" name="email" placeholder="Email" value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>" required>
         <input type="password" name="password" placeholder="Password" required>
         <button type="submit" name="login">Login</button>
     </form>
+
+    <div class="link">
+        <a href="resend_verification.php">Resend Verification</a>
+    </div>
 
     <div class="link">
         <a href="forgot_password.php">Forgot Password?</a>
     </div>
 
     <div class="link">
-        <a href="register.php">Create an account</a>
+        <a href="register.php">Create an Account</a>
     </div>
 </div>
 

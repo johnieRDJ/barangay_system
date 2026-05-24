@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('../config/database.php');
+include('../includes/validation.php');
 
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
     header("Location: ../auth/login.php");
@@ -10,8 +11,8 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin'){
 $form_error = '';
 
 if(isset($_POST['add'])){
-    $fname = trim($_POST['firstname'] ?? '');
-    $lname = trim($_POST['lastname'] ?? '');
+    $fname = barangay_clean_name($_POST['firstname'] ?? '');
+    $lname = barangay_clean_name($_POST['lastname'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $passwordInput = $_POST['password'] ?? '';
 
@@ -80,8 +81,8 @@ include('../includes/sidebar.php');
 <?php endif; ?>
 
 <form method="POST">
-<input type="text" name="firstname" placeholder="First Name" required><br><br>
-<input type="text" name="lastname" placeholder="Last Name" required><br><br>
+<input type="text" name="firstname" placeholder="First Name" pattern="[A-Za-z .'-]+" data-alpha-only required><br><br>
+<input type="text" name="lastname" placeholder="Last Name" pattern="[A-Za-z .'-]+" data-alpha-only required><br><br>
 <input type="email" name="email" placeholder="Email" required><br><br>
 <input type="password" name="password" placeholder="Password" required><br><br>
 
